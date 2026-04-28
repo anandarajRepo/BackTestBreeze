@@ -1,5 +1,8 @@
 from breeze_connect import BreezeConnect
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
 
 # Initialize SDK
 breeze = BreezeConnect(api_key=os.getenv("BREEZE_API_KEY"))
