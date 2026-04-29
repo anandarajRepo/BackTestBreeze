@@ -33,6 +33,7 @@ class GapStrategy:
         stop_loss_pct: float = 0.5,
         start_date: str = "",
         end_date: str = "",
+        interval: str = "1minute",
     ):
         self.gap_trend_service = gap_trend_service
         self.order_manager = order_manager
@@ -44,6 +45,7 @@ class GapStrategy:
         self.stop_loss_pct = stop_loss_pct
         self.start_date = start_date
         self.end_date = end_date
+        self.interval = interval
 
     def _compute_levels(self, signal: GapSignal) -> tuple[float, float]:
         entry = signal.today_open
@@ -94,7 +96,7 @@ class GapStrategy:
     def run_backtest(self) -> list[BacktestTradeResult]:
         """Iterate over every trading day in the date range and simulate trades."""
         all_candles = self.gap_trend_service.get_all_candles(
-            self.stock_code, self.exchange_code, self.start_date, self.end_date
+            self.stock_code, self.exchange_code, self.start_date, self.end_date, self.interval
         )
 
         days = self._group_candles_by_date(all_candles)
@@ -105,7 +107,7 @@ class GapStrategy:
 
         print(f"\n{'='*65}")
         print(f"  BACKTEST: {self.stock_code} | {self.start_date} → {self.end_date}")
-        print(f"  Gap threshold: {self.gap_pct}% | Target: {self.target_pct}% | SL: {self.stop_loss_pct}%")
+        print(f"  Gap threshold: {self.gap_pct}% | Target: {self.target_pct}% | SL: {self.stop_loss_pct}% | Interval: {self.interval}")
         print(f"{'='*65}\n")
 
         for i, trade_date in enumerate(sorted_dates):
@@ -178,7 +180,7 @@ class GapStrategy:
     def run(self) -> TradeResult | None:
         signal = self.gap_trend_service.build_gap_signal(
             self.stock_code, self.exchange_code, self.gap_pct,
-            self.start_date, self.end_date,
+            self.start_date, self.end_date, self.interval,
         )
 
         print(f"Previous close : {signal.prev_close:.2f}")

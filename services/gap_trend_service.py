@@ -18,13 +18,14 @@ class GapTrendService:
         exchange_code: str,
         start_date: str,
         end_date: str,
+        interval: str = "1minute",
     ) -> list[dict]:
-        """Fetch all 1-minute candles for the given date range."""
+        """Fetch candles for the given date range at the specified interval."""
         from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S")
         to_dt = datetime.strptime(end_date, "%d-%b-%Y %H:%M:%S")
 
         resp = self.breeze.get_historical_data_v2(
-            interval="1minute",
+            interval=interval,
             from_date=from_dt,
             to_date=to_dt,
             stock_code=stock_code,
@@ -37,12 +38,12 @@ class GapTrendService:
             raise ValueError(f"No historical data returned: {resp}")
         return candles
 
-    def get_previous_close(self, stock_code: str, exchange_code: str, start_date: str, end_date: str) -> float:
+    def get_previous_close(self, stock_code: str, exchange_code: str, start_date: str, end_date: str, interval: str = "1minute") -> float:
         from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S")
         to_dt = datetime.strptime(end_date, "%d-%b-%Y %H:%M:%S")
 
         resp = self.breeze.get_historical_data_v2(
-            interval="1minute",
+            interval=interval,
             from_date=from_dt,
             to_date=to_dt,
             stock_code=stock_code,
@@ -82,8 +83,9 @@ class GapTrendService:
         gap_pct_threshold: float,
         start_date: str,
         end_date: str,
+        interval: str = "1minute",
     ) -> GapSignal:
-        prev_close = self.get_previous_close(stock_code, exchange_code, start_date, end_date)
+        prev_close = self.get_previous_close(stock_code, exchange_code, start_date, end_date, interval)
         today_open = self.get_current_open(stock_code, exchange_code)
         gap_pct = ((today_open - prev_close) / prev_close) * 100
 
