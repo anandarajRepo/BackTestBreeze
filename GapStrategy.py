@@ -24,7 +24,7 @@ print("Session Generated Successfully\n")
 # Set MULTI_SYMBOL = True  to run all symbols in SYMBOLS list with a report.
 # Set MULTI_SYMBOL = False to run a single symbol defined by STOCK_CODE.
 
-MULTI_SYMBOL = False
+MULTI_SYMBOL = True
 
 # ── Single-Symbol Configuration ───────────────────────────────────────────────
 
