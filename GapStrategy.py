@@ -25,6 +25,8 @@ QUANTITY      = 1
 GAP_PCT       = 0.5
 TARGET_PCT    = 1.0
 STOP_LOSS_PCT = 0.5
+START_DATE    = "01-Apr-2026 9:15:00"
+END_DATE      = "28-Apr-2026 15:29:59"
 
 # ── Run Strategy ──────────────────────────────────────────────────────────────
 
@@ -40,6 +42,8 @@ strategy = GapStrategy(
     gap_pct=GAP_PCT,
     target_pct=TARGET_PCT,
     stop_loss_pct=STOP_LOSS_PCT,
+    start_date=START_DATE,
+    end_date=END_DATE,
 )
 
 strategy.run()

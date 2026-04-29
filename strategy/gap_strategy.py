@@ -23,6 +23,8 @@ class GapStrategy:
         gap_pct: float = 0.5,
         target_pct: float = 1.0,
         stop_loss_pct: float = 0.5,
+        start_date: str = "",
+        end_date: str = "",
     ):
         self.gap_trend_service = gap_trend_service
         self.order_manager = order_manager
@@ -32,6 +34,8 @@ class GapStrategy:
         self.gap_pct = gap_pct
         self.target_pct = target_pct
         self.stop_loss_pct = stop_loss_pct
+        self.start_date = start_date
+        self.end_date = end_date
 
     def _compute_levels(self, signal: GapSignal) -> tuple[float, float]:
         entry = signal.today_open
@@ -45,7 +49,8 @@ class GapStrategy:
 
     def run(self) -> TradeResult | None:
         signal = self.gap_trend_service.build_gap_signal(
-            self.stock_code, self.exchange_code, self.gap_pct
+            self.stock_code, self.exchange_code, self.gap_pct,
+            self.start_date, self.end_date,
         )
 
         print(f"Previous close : {signal.prev_close:.2f}")
