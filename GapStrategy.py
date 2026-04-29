@@ -46,4 +46,4 @@ strategy = GapStrategy(
     end_date=END_DATE,
 )
 
-strategy.run()
+strategy.run_backtest()
