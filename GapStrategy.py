@@ -27,6 +27,7 @@ TARGET_PCT    = 1.0
 STOP_LOSS_PCT = 0.5
 START_DATE    = "01-Apr-2026 9:15:00"
 END_DATE      = "28-Apr-2026 15:29:59"
+INTERVAL      = "1minute"  # Options: 1minute, 5minute, 30minute, 1day
 
 # ── Run Strategy ──────────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ strategy = GapStrategy(
     stop_loss_pct=STOP_LOSS_PCT,
     start_date=START_DATE,
     end_date=END_DATE,
+    interval=INTERVAL,
 )
 
 strategy.run_backtest()
