@@ -19,7 +19,7 @@ print("Session Generated Successfully")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-STOCK_CODE    = "ITC"
+STOCK_CODE    = "OLAELE"
 EXCHANGE_CODE = "NSE"
 QUANTITY      = 1
 
@@ -28,13 +28,13 @@ GAP_PCT       = 0.5
 MAX_GAP_PCT   = 5.0
 
 # Exit levels
-TARGET_PCT    = 1.0
-STOP_LOSS_PCT = 0.5
+TARGET_PCT    = 5.0
+STOP_LOSS_PCT = 5.0
 
 # Date range and candle interval
-START_DATE    = "01-Apr-2026 9:15:00"
+START_DATE    = "01-Jan-2026 9:15:00"
 END_DATE      = "28-Apr-2026 15:29:59"
-INTERVAL      = "1minute"  # Options: 1minute, 5minute, 30minute, 1day
+INTERVAL      = "1day"  # Options: 1minute, 5minute, 30minute, 1day
 
 # Historical behaviour analysis
 BEHAVIOR_LOOKBACK_DAYS  = 30   # calendar days to look back per trade day
