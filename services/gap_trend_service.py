@@ -21,8 +21,8 @@ class GapTrendService:
         interval: str = "1minute",
     ) -> list[dict]:
         """Fetch candles for the given date range at the specified interval."""
-        from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S")
-        to_dt = datetime.strptime(end_date, "%d-%b-%Y %H:%M:%S")
+        from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S").strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        to_dt = datetime.strptime(end_date, "%d-%b-%Y %H:%M:%S").strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         resp = self.breeze.get_historical_data_v2(
             interval=interval,
@@ -39,8 +39,8 @@ class GapTrendService:
         return candles
 
     def get_previous_close(self, stock_code: str, exchange_code: str, start_date: str, end_date: str, interval: str = "1minute") -> float:
-        from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S")
-        to_dt = datetime.strptime(end_date, "%d-%b-%Y %H:%M:%S")
+        from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S").strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        to_dt = datetime.strptime(end_date, "%d-%b-%Y %H:%M:%S").strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         resp = self.breeze.get_historical_data_v2(
             interval=interval,
