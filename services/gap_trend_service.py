@@ -3,7 +3,7 @@ Data-fetching service: retrieves previous close and today's open via Breeze API.
 """
 
 from breeze_connect import BreezeConnect
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from models.trading_models import GapSignal, TradeDirection
 
@@ -12,16 +12,9 @@ class GapTrendService:
     def __init__(self, breeze: BreezeConnect):
         self.breeze = breeze
 
-    def get_previous_close(self, stock_code: str, exchange_code: str) -> float:
-
-        start_datetime = "01-Apr-2026 9:15:00"
-        end_datetime = "28-Apr-2026 15:29:59"
-        from_dt = datetime.strptime(start_datetime, "%d-%b-%Y %H:%M:%S")
-        to_dt = datetime.strptime(end_datetime, "%d-%b-%Y %H:%M:%S")
-
-        # today = datetime.now()
-        # from_dt = (today - timedelta(days=12)).strftime("%d-%b-%Y %H:%M:%S")
-        # to_dt = (today - timedelta(days=1)).strftime("%d-%b-%Y %H:%M:%S")
+    def get_previous_close(self, stock_code: str, exchange_code: str, start_date: str, end_date: str) -> float:
+        from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S")
+        to_dt = datetime.strptime(end_date, "%d-%b-%Y %H:%M:%S")
 
         resp = self.breeze.get_historical_data_v2(
             interval="1minute",
@@ -62,8 +55,10 @@ class GapTrendService:
         stock_code: str,
         exchange_code: str,
         gap_pct_threshold: float,
+        start_date: str,
+        end_date: str,
     ) -> GapSignal:
-        prev_close = self.get_previous_close(stock_code, exchange_code)
+        prev_close = self.get_previous_close(stock_code, exchange_code, start_date, end_date)
         today_open = self.get_current_open(stock_code, exchange_code)
         gap_pct = ((today_open - prev_close) / prev_close) * 100
 
