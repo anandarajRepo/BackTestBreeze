@@ -13,10 +13,15 @@ class GapTrendService:
         self.breeze = breeze
 
     def get_previous_close(self, stock_code: str, exchange_code: str) -> float:
-        today = datetime.now()
-        from_dt = (today - timedelta(days=12)).strftime("%d-%B-%Y %H:%M:%S")
-        # Exclude today so the last candle is always the most recent completed session
-        to_dt = (today - timedelta(days=1)).strftime("%d-%B-%Y %H:%M:%S")
+
+        start_datetime = "01-Apr-2026 9:15:00"
+        end_datetime = "28-Apr-2026 15:29:59"
+        from_dt = datetime.strptime(start_datetime, "%d-%b-%Y %H:%M:%S")
+        to_dt = datetime.strptime(end_datetime, "%d-%b-%Y %H:%M:%S")
+
+        # today = datetime.now()
+        # from_dt = (today - timedelta(days=12)).strftime("%d-%b-%Y %H:%M:%S")
+        # to_dt = (today - timedelta(days=1)).strftime("%d-%b-%Y %H:%M:%S")
 
         resp = self.breeze.get_historical_data_v2(
             interval="1minute",

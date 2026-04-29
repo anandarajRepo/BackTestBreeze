@@ -19,7 +19,7 @@ print("Session Generated Successfully")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-STOCK_CODE    = "RELIANCE"
+STOCK_CODE    = "ITC"
 EXCHANGE_CODE = "NSE"
 QUANTITY      = 1
 GAP_PCT       = 0.5
