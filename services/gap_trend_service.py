@@ -14,8 +14,9 @@ class GapTrendService:
 
     def get_previous_close(self, stock_code: str, exchange_code: str) -> float:
         today = datetime.now()
-        from_dt = (today - timedelta(days=5)).strftime("%Y-%m-%dT07:00:00.000Z")
-        to_dt = today.strftime("%Y-%m-%dT07:00:00.000Z")
+        from_dt = (today - timedelta(days=10)).strftime("%Y-%m-%dT07:00:00.000Z")
+        # Exclude today so the last candle is always the most recent completed session
+        to_dt = (today - timedelta(days=1)).strftime("%Y-%m-%dT07:00:00.000Z")
 
         resp = self.breeze.get_historical_data_v2(
             interval="1day",
@@ -27,10 +28,10 @@ class GapTrendService:
         )
 
         candles = resp.get("Success") or []
-        if len(candles) < 2:
+        if not candles:
             raise ValueError(f"Not enough historical data: {resp}")
 
-        return float(candles[-2]["close"])
+        return float(candles[-1]["close"])
 
     def get_current_open(self, stock_code: str, exchange_code: str) -> float:
         today_str = datetime.now().strftime("%Y-%m-%dT07:00:00.000Z")
