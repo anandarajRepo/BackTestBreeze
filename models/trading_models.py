@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from datetime import date
 
 
 class TradeDirection(str, Enum):
@@ -25,3 +26,17 @@ class TradeResult:
     target: float
     stop_loss: float
     order_response: dict
+
+
+@dataclass
+class BacktestTradeResult:
+    trade_date: date
+    direction: TradeDirection
+    prev_close: float
+    entry_price: float
+    target: float
+    stop_loss: float
+    exit_price: float
+    exit_reason: str   # "target", "stop_loss", or "close"
+    pnl: float
+    gap_pct: float

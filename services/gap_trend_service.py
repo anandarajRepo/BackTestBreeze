@@ -12,6 +12,31 @@ class GapTrendService:
     def __init__(self, breeze: BreezeConnect):
         self.breeze = breeze
 
+    def get_all_candles(
+        self,
+        stock_code: str,
+        exchange_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> list[dict]:
+        """Fetch all 1-minute candles for the given date range."""
+        from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S")
+        to_dt = datetime.strptime(end_date, "%d-%b-%Y %H:%M:%S")
+
+        resp = self.breeze.get_historical_data_v2(
+            interval="1minute",
+            from_date=from_dt,
+            to_date=to_dt,
+            stock_code=stock_code,
+            exchange_code=exchange_code,
+            product_type="cash",
+        )
+
+        candles = resp.get("Success") or []
+        if not candles:
+            raise ValueError(f"No historical data returned: {resp}")
+        return candles
+
     def get_previous_close(self, stock_code: str, exchange_code: str, start_date: str, end_date: str) -> float:
         from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S")
         to_dt = datetime.strptime(end_date, "%d-%b-%Y %H:%M:%S")
