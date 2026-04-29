@@ -16,7 +16,7 @@ class GapTrendService:
         today = datetime.now()
         from_dt = (today - timedelta(days=10)).strftime("%Y-%m-%dT07:00:00.000Z")
         # Exclude today so the last candle is always the most recent completed session
-        to_dt = (today - timedelta(days=1)).strftime("%Y-%m-%dT07:00:00.000Z")
+        to_dt = (today - timedelta(days=1)).strftime("%Y-%m-%dT23:59:59.000Z")
 
         resp = self.breeze.get_historical_data_v2(
             interval="1day",
