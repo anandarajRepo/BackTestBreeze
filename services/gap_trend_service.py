@@ -19,7 +19,7 @@ class GapTrendService:
         to_dt = (today - timedelta(days=1)).strftime("%d-%B-%Y %H:%M:%S")
 
         resp = self.breeze.get_historical_data_v2(
-            interval="1day",
+            interval="1minute",
             from_date=from_dt,
             to_date=to_dt,
             stock_code=stock_code,
