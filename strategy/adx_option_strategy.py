@@ -304,7 +304,7 @@ class ADXOptionStrategy:
         print(f"  Period  : {self.start_date}  →  {self.end_date}")
         print(f"  Capital : ₹{self.capital:,.0f}  |  ADX period: {self.adx_period}"
               f"  |  ADX threshold: {self.adx_threshold}")
-        print(f"  Expiries found: {len(tuesdays)}")
+        print(f"  Expiries found: {len(wednesdays)}")
         print(f"{'='*70}\n")
 
         for expiry in wednesdays:
