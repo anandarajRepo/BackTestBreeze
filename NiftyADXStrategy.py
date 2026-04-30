@@ -42,10 +42,10 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE     = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE       = "31-Mar-2026"   # format: DD-Mon-YYYY
+START_DATE     = "01-Apr-2026"   # format: DD-Mon-YYYY
+END_DATE       = "28-Apr-2026"   # format: DD-Mon-YYYY
 
-CAPITAL        = 100_000.0       # capital per contract (used for position sizing)
+CAPITAL        = 100000.0       # capital per contract (used for position sizing)
 ADX_PERIOD     = 14              # lookback period for ADX / DI calculation
 ADX_THRESHOLD  = 20.0            # minimum ADX value required to enter a trade
 
