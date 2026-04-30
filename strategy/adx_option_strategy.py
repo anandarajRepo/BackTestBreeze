@@ -298,7 +298,7 @@ class ADXOptionStrategy:
     def run_weekly_backtest(self) -> list[WeeklyExpiryResult]:
         expiry_results: list[WeeklyExpiryResult] = []
 
-        tuesdays = NiftyOptionService.weekly_tuesdays(self.start_date, self.end_date)
+        wednesdays = NiftyOptionService.weekly_wednesdays(self.start_date, self.end_date)
         print(f"\n{'='*70}")
         print(f"  NIFTY ADX STRATEGY — WEEKLY EXPIRY BACKTEST")
         print(f"  Period  : {self.start_date}  →  {self.end_date}")
@@ -307,7 +307,7 @@ class ADXOptionStrategy:
         print(f"  Expiries found: {len(tuesdays)}")
         print(f"{'='*70}\n")
 
-        for expiry in tuesdays:
+        for expiry in wednesdays:
             monday     = NiftyOptionService.monday_of_week(expiry)
             win_start, win_end = NiftyOptionService.week_window(expiry)
 
