@@ -80,11 +80,11 @@ class NiftyOptionService:
 
     @staticmethod
     def weekly_wednesdays(start: date, end: date) -> list[date]:
-        """Return all Wednesdays between start and end (inclusive)."""
+        """Return all Tuesdays (Nifty weekly expiry day) between start and end (inclusive)."""
         wednesdays: list[date] = []
         d = start
-        # advance to first Wednesday
-        while d.weekday() != 2:  # 2 = Wednesday
+        # advance to first Tuesday
+        while d.weekday() != 1:  # 1 = Tuesday
             d += timedelta(days=1)
         while d <= end:
             wednesdays.append(d)
@@ -93,14 +93,14 @@ class NiftyOptionService:
 
     @staticmethod
     def monday_of_week(expiry: date) -> date:
-        """Return the Monday immediately before a given Wednesday expiry."""
-        return expiry - timedelta(days=2)
+        """Return the Monday immediately before a given Tuesday expiry."""
+        return expiry - timedelta(days=1)
 
     @staticmethod
     def week_window(expiry: date) -> tuple[date, date]:
         """
-        Trading window for an expiry week: Thursday (prior week) → Wednesday expiry.
-        Previous Thursday = expiry - 6 days.
+        Trading window for an expiry week: Wednesday (prior week) → Tuesday expiry.
+        Previous Wednesday = expiry - 6 days.
         """
-        prev_thursday = expiry - timedelta(days=6)
-        return prev_thursday, expiry
+        prev_wednesday = expiry - timedelta(days=6)
+        return prev_wednesday, expiry
