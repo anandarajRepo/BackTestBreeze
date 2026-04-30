@@ -16,9 +16,9 @@ Note: no stop-loss in this strategy.
 
 Usage:
   Set START_DATE / END_DATE to the desired backtest window (YYYY-MM-DD).
-  Each Tuesday in that range is treated as a weekly expiry.
+  Each Thursday in that range is treated as a weekly expiry.
   The ATM strike is computed from Monday's Nifty opening price.
-  The trade window for each expiry is Wednesday (prior week) → Tuesday.
+  The trade window for each expiry is Wednesday (prior week) → Thursday.
 """
 
 import os
