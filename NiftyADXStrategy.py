@@ -48,7 +48,7 @@ END_DATE       = "28-Apr-2026"   # format: DD-Mon-YYYY
 CAPITAL        = 100000.0       # capital per contract (used for position sizing)
 ADX_PERIOD     = 14              # lookback period for ADX / DI calculation
 ADX_THRESHOLD  = 20.0            # minimum ADX value required to enter a trade
-INTERVAL       = "1minute"       # candle interval: "1minute", "5minute", "30minute", etc.
+INTERVAL       = "1minute"       # candle interval: "1second", "1minute", "5minute", "30minute", or "1day"
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
