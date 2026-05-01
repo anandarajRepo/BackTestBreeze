@@ -48,6 +48,7 @@ END_DATE       = "28-Apr-2026"   # format: DD-Mon-YYYY
 CAPITAL        = 100000.0       # capital per contract (used for position sizing)
 ADX_PERIOD     = 14              # lookback period for ADX / DI calculation
 ADX_THRESHOLD  = 20.0            # minimum ADX value required to enter a trade
+INTERVAL       = "1minute"       # candle interval: "1minute", "5minute", "30minute", etc.
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ if __name__ == "__main__":
         adx_threshold=ADX_THRESHOLD,
         start_date=START_DATE,
         end_date=END_DATE,
+        interval=INTERVAL,
     )
 
     expiry_results = strategy.run_weekly_backtest()
