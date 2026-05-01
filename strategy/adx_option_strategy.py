@@ -135,6 +135,7 @@ class ADXOptionStrategy:
         adx_threshold: float = 20.0,
         start_date: str = "",
         end_date: str = "",
+        interval: str = "1minute",
     ):
         self.nifty_service  = nifty_service
         self.capital        = capital
@@ -142,6 +143,7 @@ class ADXOptionStrategy:
         self.adx_threshold  = adx_threshold
         self.start_date     = datetime.strptime(start_date, "%d-%b-%Y").date()
         self.end_date       = datetime.strptime(end_date,   "%d-%b-%Y").date()
+        self.interval       = interval
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -338,6 +340,7 @@ class ADXOptionStrategy:
                         option_type=opt_type,
                         start=from_dt,
                         end=to_dt,
+                        interval=self.interval,
                     )
                     trades = self._run_symbol(candles, opt_type, strike, expiry)
 
