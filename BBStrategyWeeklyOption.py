@@ -46,7 +46,7 @@ START_DATE  = "01-Apr-2026"   # format: DD-Mon-YYYY
 END_DATE    = "28-Apr-2026"   # format: DD-Mon-YYYY
 
 CAPITAL     = 100000.0        # capital per contract (used for position sizing)
-BB_PERIOD   = 20              # lookback period for Bollinger Bands
+BB_PERIOD   = 30              # lookback period for Bollinger Bands
 BB_STD_DEV  = 2.0             # number of standard deviations for the bands
 INTERVAL    = "1minute"       # candle interval: "1second", "1minute", "5minute", "30minute", or "1day"
 
