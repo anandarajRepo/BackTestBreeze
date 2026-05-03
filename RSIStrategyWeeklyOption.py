@@ -49,7 +49,7 @@ print("Session Generated Successfully\n")
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 START_DATE          = "01-Apr-2026"   # format: DD-Mon-YYYY
-END_DATE            = "28-Apr-2026"   # format: DD-Mon-YYYY
+END_DATE            = "05-May-2026"   # format: DD-Mon-YYYY
 
 CAPITAL             = 100000.0        # capital per contract (used for position sizing)
 RSI_PERIOD          = 14              # RSI lookback period
