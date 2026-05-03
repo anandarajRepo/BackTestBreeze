@@ -43,10 +43,11 @@ print("Session Generated Successfully\n")
 START_DATE   = "01-Jan-2026"   # format: DD-Mon-YYYY
 END_DATE     = "05-May-2026"   # format: DD-Mon-YYYY
 
-CAPITAL      = 30000        # capital per contract (used for position sizing)
-FAST_PERIOD  = 45               # fast EMA period
-SLOW_PERIOD  = 105              # slow EMA period
-INTERVAL     = "1minute"       # candle interval — keep as 5minute for this strategy
+CAPITAL             = 30000     # capital per contract (used for position sizing)
+FAST_PERIOD         = 45        # fast EMA period
+SLOW_PERIOD         = 105       # slow EMA period
+INTERVAL            = "1minute" # candle interval — keep as 5minute for this strategy
+TRAILING_STOP_PCT   = 10.0      # trailing stop loss percentage (e.g. 10.0 = 10%)
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ if __name__ == "__main__":
         start_date=START_DATE,
         end_date=END_DATE,
         interval=INTERVAL,
+        trailing_stop_pct=TRAILING_STOP_PCT,
     )
 
     expiry_results = strategy.run_weekly_backtest()
