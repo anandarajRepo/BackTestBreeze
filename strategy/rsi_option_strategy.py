@@ -77,7 +77,7 @@ def _detect_bullish_divergence(
 
     # Find the two lowest price points
     first_low_idx  = int(p.iloc[: lookback // 2].idxmin())
-    second_low_idx = int(p.iloc[lookback // 2 :].idxmin()) + lookback // 2
+    second_low_idx = int(p.iloc[lookback // 2 :].idxmin())
 
     if first_low_idx >= second_low_idx:
         return False
@@ -103,7 +103,7 @@ def _detect_bearish_divergence(
     r = rsis.iloc[-lookback:].reset_index(drop=True)
 
     first_high_idx  = int(p.iloc[: lookback // 2].idxmax())
-    second_high_idx = int(p.iloc[lookback // 2 :].idxmax()) + lookback // 2
+    second_high_idx = int(p.iloc[lookback // 2 :].idxmax())
 
     if first_high_idx >= second_high_idx:
         return False
