@@ -97,14 +97,16 @@ class EMACrossoverStrategy:
         start_date: str = "",
         end_date: str = "",
         interval: str = "5minute",
+        trailing_stop_pct: float = 10.0,
     ):
-        self.nifty_service = nifty_service
-        self.capital      = capital
-        self.fast_period  = fast_period
-        self.slow_period  = slow_period
-        self.start_date   = datetime.strptime(start_date, "%d-%b-%Y").date()
-        self.end_date     = datetime.strptime(end_date,   "%d-%b-%Y").date()
-        self.interval     = interval
+        self.nifty_service      = nifty_service
+        self.capital            = capital
+        self.fast_period        = fast_period
+        self.slow_period        = slow_period
+        self.start_date         = datetime.strptime(start_date, "%d-%b-%Y").date()
+        self.end_date           = datetime.strptime(end_date,   "%d-%b-%Y").date()
+        self.interval           = interval
+        self.trailing_stop_pct  = trailing_stop_pct
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -132,6 +134,7 @@ class EMACrossoverStrategy:
         entry_row    = None
         entry_price  = 0.0
         shares       = 0
+        peak_price   = 0.0
 
         prev_fast: float | None = None
         prev_slow: float | None = None
@@ -147,10 +150,17 @@ class EMACrossoverStrategy:
 
             # ── Exit logic ────────────────────────────────────────────────
             if in_position and prev_fast is not None:
+                # Update trailing high-water mark
+                if price > peak_price:
+                    peak_price = price
+
                 exit_reason = None
+                trail_stop_price = peak_price * (1 - self.trailing_stop_pct / 100)
 
                 if t >= _SQUARE_OFF:
                     exit_reason = "SQUARE_OFF"
+                elif price <= trail_stop_price:
+                    exit_reason = "TRAIL_STOP"
                 elif option_type == "CE" and fast_ema < slow_ema and prev_fast >= prev_slow:
                     # Bearish crossover — exit CE position
                     exit_reason = "EMA_CROSS"
@@ -203,6 +213,7 @@ class EMACrossoverStrategy:
 
                 if signal:
                     entry_price = price
+                    peak_price  = price
                     shares      = max(floor(self.capital / entry_price), 1)
                     in_position = True
                     entry_row   = row
@@ -250,7 +261,8 @@ class EMACrossoverStrategy:
         print(f"  NIFTY EMA CROSSOVER STRATEGY — WEEKLY EXPIRY BACKTEST")
         print(f"  Period  : {self.start_date}  →  {self.end_date}")
         print(f"  Capital : ₹{self.capital:,.0f}  |  Fast EMA: {self.fast_period}"
-              f"  |  Slow EMA: {self.slow_period}  |  Interval: {self.interval}")
+              f"  |  Slow EMA: {self.slow_period}  |  Interval: {self.interval}"
+              f"  |  Trailing Stop: {self.trailing_stop_pct}%")
         print(f"  Expiries found: {len(wednesdays)}")
         print(f"{'='*70}\n")
 
