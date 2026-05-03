@@ -43,11 +43,11 @@ print("Session Generated Successfully\n")
 START_DATE   = "01-Jan-2026"   # format: DD-Mon-YYYY
 END_DATE     = "05-May-2026"   # format: DD-Mon-YYYY
 
-CAPITAL             = 30000     # capital per contract (used for position sizing)
+CAPITAL             = 100000     # capital per contract (used for position sizing)
 FAST_PERIOD         = 45        # fast EMA period
 SLOW_PERIOD         = 105       # slow EMA period
 INTERVAL            = "1minute" # candle interval — keep as 5minute for this strategy
-TRAILING_STOP_PCT   = 10.0      # trailing stop loss percentage (e.g. 10.0 = 10%)
+TRAILING_STOP_PCT   = 50.0      # trailing stop loss percentage (e.g. 10.0 = 10%)
 
 # When True: use full CAPITAL if option price >= 100, else use 10% of CAPITAL.
 # When False: always use full CAPITAL regardless of price.
