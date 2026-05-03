@@ -35,91 +35,91 @@ EXCHANGE_CODE = "NSE"
 SYMBOLS = [
     # Oil & Gas — PSU Upstream
     "NSE:ONGC-EQ",
-    "NSE:OIL-EQ",
+    "NSE:OILIND-EQ",
     "NSE:GAIL-EQ",
 
     # Renewables — Structural Beneficiaries
-    "NSE:ADANIGREEN-EQ",
-    "NSE:TATAPOWER-EQ",
+    "NSE:ADAGRE-EQ",
+    "NSE:TATPOW-EQ",
     "NSE:CESC-EQ",
 
     # City Gas / LNG Distribution
-    "NSE:IGL-EQ",
-    "NSE:MGL-EQ",
-    "NSE:GUJGASLTD-EQ",
-    "NSE:PETRONET-EQ",
+    "NSE:INDGAS-EQ",
+    "NSE:MAHGAS-EQ",
+    "NSE:GUJGA-EQ",
+    "NSE:PETLNG-EQ",
 
     # Defence
-    "NSE:HAL-EQ",
-    "NSE:BEL-EQ",
-    "NSE:MAZDOCK-EQ",
-    "NSE:DATAPATTNS-EQ",
+    "NSE:HINAER-EQ",
+    "NSE:BHAELE-EQ",
+    "NSE:MAZDOC-EQ",
+    "NSE:DATPAT-EQ",
 
     # Sugar - Ethanol
-    "NSE:EIDPARRY-EQ",
-    "NSE:BALRAMCHIN-EQ",
-    "NSE:TRIVENI-EQ",
+    "NSE:EIDPAR-EQ",
+    "NSE:BALCHI-EQ",
+    "NSE:TRIENG-EQ",
 
     # Pharmaceuticals
-    "NSE:SUNPHARMA-EQ",
-    "NSE:DIVISLAB-EQ",
+    "NSE:SUNPHA-EQ",
+    "NSE:DIVLAB-EQ",
     "NSE:CIPLA-EQ",
 
     # Petroleum (Oil Marketing Companies)
-    "NSE:IOC-EQ",
-    "NSE:BPCL-EQ",
-    "NSE:HINDPETRO-EQ",
+    "NSE:INDOIL-EQ",
+    "NSE:BHAPET-EQ",
+    "NSE:HINPET-EQ",
 
     # Airlines
-    "NSE:INDIGO-EQ",
+    "NSE:INDPAI-EQ",
 
     # Paints
-    "NSE:ASIANPAINT-EQ",
-    "NSE:BERGEPAINT-EQ",
-    "NSE:KANSAINER-EQ",
-    "NSE:INDIGOPNTS-EQ",
+    "NSE:ASIPAI-EQ",
+    "NSE:BERPAI-EQ",
+    "NSE:KANNER-EQ",
+    "NSE:INDPAI-EQ",
 
     # Tyres
-    "NSE:CEATLTD-EQ",
-    "NSE:MRF-EQ",
-    "NSE:APOLLOTYRE-EQ",
+    "NSE:CEAT-EQ",
+    "NSE:MRFTYR-EQ",
+    "NSE:APOTYR-EQ",
     "NSE:JKTYRE-EQ",
-    "NSE:BALKRISIND-EQ",
+    "NSE:BALIND-EQ",
 
     # Autos (Nifty Auto)
     "NSE:MARUTI-EQ",
-    "NSE:M&M-EQ",
-    "NSE:BAJAJ-AUTO-EQ",
-    "NSE:EICHERMOT-EQ",
-    "NSE:TVSMOTOR-EQ",
+    "NSE:MAHMAH-EQ",
+    "NSE:BAAUTO-EQ",
+    "NSE:EICMOT-EQ",
+    "NSE:TVSMOT-EQ",
 
     # Jewellery
-    "NSE:TITAN-EQ",
-    "NSE:KALYANKJIL-EQ",
-    "NSE:PCJEWELLER-EQ",
-    "NSE:PNGBL-EQ",
-    "NSE:THANGAMAYL-EQ",
-    "NSE:SENCO-EQ",
-    "NSE:SKYGOLD-EQ",
-    "NSE:GOLDIAM-EQ",
+    "NSE:TITIND-EQ",
+    "NSE:KALJEW-EQ",
+    "NSE:PCJEW-EQ",
+    "NSE:PNGADG-EQ",
+    "NSE:THAJEW-EQ",
+    "NSE:SENGOL-EQ",
+    "NSE:SKYGOL-EQ",
+    "NSE:GOLINT-EQ",
 
     # IT
-    "NSE:INFY-EQ",
+    "NSE:INFTEC-EQ",
     "NSE:TCS-EQ",
-    "NSE:HCLTECH-EQ",
+    "NSE:HCLTEC-EQ",
     "NSE:WIPRO-EQ",
-    "NSE:TECHM-EQ",
+    "NSE:TECMAH-EQ",
 
     # Banking
-    "NSE:HDFCBANK-EQ",
-    "NSE:ICICIBANK-EQ",
-    "NSE:AXISBANK-EQ",
-    "NSE:KOTAKBANK-EQ",
-    "NSE:SBIN-EQ",
+    "NSE:HDFBAN-EQ",
+    "NSE:ICIBAN-EQ",
+    "NSE:AXIBAN-EQ",
+    "NSE:KOTMAH-EQ",
+    "NSE:STABAN-EQ",
 
     # Favourite Stocks
-    "NSE:STLTECH-EQ",
-    "NSE:AXISCADES-EQ",
+    "NSE:STETEC-EQ",
+    "NSE:AXIIT-EQ",
 ]
 
 # ── Strategy Configuration (mirrors FyersORB defaults) ────────────────────────
@@ -128,7 +128,7 @@ QUANTITY          = 1
 ORB_MINUTES       = 15       # Opening range period in minutes (9:15–9:30 AM)
 STOP_LOSS_PCT     = 1.5      # Stop-loss percentage from entry
 RISK_REWARD_RATIO = 2.0      # Target = risk * RR ratio
-START_DATE        = "01-Jan-2026 9:15:00"
+START_DATE        = "25-Jan-2026 9:15:00"
 END_DATE          = "28-Apr-2026 15:29:59"
 INTERVAL          = "1minute"
 
