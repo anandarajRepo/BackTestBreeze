@@ -2,32 +2,29 @@
 Nifty 50 Weekly Options — RSI Convergence & Divergence Backtest
 ===============================================================
 
-Signals
--------
-  Bullish divergence  → buy CE
-    Price makes a lower low while RSI makes a higher low (hidden strength).
+Signal types:
 
-  Bearish divergence  → buy PE
-    Price makes a higher high while RSI makes a lower high (hidden weakness).
+DIVERGENCE
+  CE — bullish divergence: price prints a lower low but RSI prints a higher low
+       (classic oversold divergence signalling upward reversal)
+  PE — bearish divergence: price prints a higher high but RSI prints a lower high
+       (classic overbought divergence signalling downward reversal)
 
-  Bullish convergence → buy CE
-    RSI crosses back above the oversold level (momentum confirming upswing).
+CONVERGENCE  (RSI extreme mean-reversion)
+  CE — RSI crosses back above the oversold threshold (was below, now above)
+  PE — RSI crosses back below the overbought threshold (was above, now below)
 
-  Bearish convergence → buy PE
-    RSI crosses back below the overbought level (momentum confirming downswing).
-
-Exit
-----
-  - RSI crosses the 50 neutral level
+Exit:
+  - RSI crosses the neutral exit level (default 50)
   - Square-off at 15:20 IST
   - No new entries before 9:30 or after 14:45
   - Max 5 trades per day per symbol
 
-Usage
------
-  Set START_DATE / END_DATE to the desired backtest window (YYYY-MM-DD).
+Usage:
+  Set START_DATE / END_DATE to the desired backtest window (DD-Mon-YYYY).
   Each Tuesday in that range is treated as a weekly expiry.
   The ATM strike is computed from Monday's Nifty opening price.
+  The trade window for each expiry is Wednesday (prior week) → Tuesday.
 """
 
 import os
@@ -51,15 +48,16 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE           = "01-Apr-2026"   # format: DD-Mon-YYYY
-END_DATE             = "28-Apr-2026"   # format: DD-Mon-YYYY
+START_DATE          = "01-Apr-2026"   # format: DD-Mon-YYYY
+END_DATE            = "28-Apr-2026"   # format: DD-Mon-YYYY
 
-CAPITAL              = 100000.0        # capital per contract (used for position sizing)
-RSI_PERIOD           = 14              # lookback period for RSI calculation
-OVERSOLD             = 30.0            # RSI level considered oversold
-OVERBOUGHT           = 70.0            # RSI level considered overbought
-DIVERGENCE_LOOKBACK  = 5               # bars to scan for price/RSI divergence
-INTERVAL             = "1minute"       # candle interval
+CAPITAL             = 100000.0        # capital per contract (used for position sizing)
+RSI_PERIOD          = 14              # RSI lookback period
+RSI_OVERSOLD        = 30.0            # entry threshold for CE convergence/divergence
+RSI_OVERBOUGHT      = 70.0            # entry threshold for PE convergence/divergence
+RSI_EXIT_LEVEL      = 50.0            # RSI level that triggers exit (neutral zone)
+DIVERGENCE_LOOKBACK = 20              # number of bars to scan for divergence pivots
+INTERVAL            = "1minute"       # candle interval
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
@@ -70,8 +68,9 @@ if __name__ == "__main__":
         nifty_service=nifty_service,
         capital=CAPITAL,
         rsi_period=RSI_PERIOD,
-        oversold=OVERSOLD,
-        overbought=OVERBOUGHT,
+        rsi_oversold=RSI_OVERSOLD,
+        rsi_overbought=RSI_OVERBOUGHT,
+        rsi_exit_level=RSI_EXIT_LEVEL,
         divergence_lookback=DIVERGENCE_LOOKBACK,
         start_date=START_DATE,
         end_date=END_DATE,

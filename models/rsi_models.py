@@ -18,8 +18,7 @@ class RSITradeResult:
     signal_type: str          # "DIVERGENCE" or "CONVERGENCE"
     rsi_at_entry: float
     rsi_at_exit: float
-    price_at_entry: float
-    price_at_exit: float
+    price_at_entry: float     # underlying price that triggered signal
     duration_minutes: int
 
 
