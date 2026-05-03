@@ -49,6 +49,10 @@ SLOW_PERIOD         = 105       # slow EMA period
 INTERVAL            = "1minute" # candle interval — keep as 5minute for this strategy
 TRAILING_STOP_PCT   = 10.0      # trailing stop loss percentage (e.g. 10.0 = 10%)
 
+# When True: use full CAPITAL if option price >= 100, else use 10% of CAPITAL.
+# When False: always use full CAPITAL regardless of price.
+PRICE_BASED_CAPITAL = False
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -63,6 +67,7 @@ if __name__ == "__main__":
         end_date=END_DATE,
         interval=INTERVAL,
         trailing_stop_pct=TRAILING_STOP_PCT,
+        price_based_capital=PRICE_BASED_CAPITAL,
     )
 
     expiry_results = strategy.run_weekly_backtest()

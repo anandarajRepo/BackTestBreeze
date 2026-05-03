@@ -98,15 +98,17 @@ class EMACrossoverStrategy:
         end_date: str = "",
         interval: str = "5minute",
         trailing_stop_pct: float = 10.0,
+        price_based_capital: bool = False,
     ):
-        self.nifty_service      = nifty_service
-        self.capital            = capital
-        self.fast_period        = fast_period
-        self.slow_period        = slow_period
-        self.start_date         = datetime.strptime(start_date, "%d-%b-%Y").date()
-        self.end_date           = datetime.strptime(end_date,   "%d-%b-%Y").date()
-        self.interval           = interval
-        self.trailing_stop_pct  = trailing_stop_pct
+        self.nifty_service        = nifty_service
+        self.capital              = capital
+        self.fast_period          = fast_period
+        self.slow_period          = slow_period
+        self.start_date           = datetime.strptime(start_date, "%d-%b-%Y").date()
+        self.end_date             = datetime.strptime(end_date,   "%d-%b-%Y").date()
+        self.interval             = interval
+        self.trailing_stop_pct    = trailing_stop_pct
+        self.price_based_capital  = price_based_capital
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -214,7 +216,11 @@ class EMACrossoverStrategy:
                 if signal:
                     entry_price = price
                     peak_price  = price
-                    shares      = max(floor(self.capital / entry_price), 1)
+                    if self.price_based_capital:
+                        effective_capital = self.capital if entry_price >= 100 else self.capital * 0.10
+                    else:
+                        effective_capital = self.capital
+                    shares      = max(floor(effective_capital / entry_price), 1)
                     in_position = True
                     entry_row   = row
                     daily_trade_count[today] += 1
@@ -260,9 +266,11 @@ class EMACrossoverStrategy:
         print(f"\n{'='*70}")
         print(f"  NIFTY EMA CROSSOVER STRATEGY — WEEKLY EXPIRY BACKTEST")
         print(f"  Period  : {self.start_date}  →  {self.end_date}")
+        price_cap_label = "ON (≥100 → full, <100 → 10%)" if self.price_based_capital else "OFF"
         print(f"  Capital : ₹{self.capital:,.0f}  |  Fast EMA: {self.fast_period}"
               f"  |  Slow EMA: {self.slow_period}  |  Interval: {self.interval}"
-              f"  |  Trailing Stop: {self.trailing_stop_pct}%")
+              f"  |  Trailing Stop: {self.trailing_stop_pct}%"
+              f"  |  Price-Based Capital: {price_cap_label}")
         print(f"  Expiries found: {len(wednesdays)}")
         print(f"{'='*70}\n")
 
