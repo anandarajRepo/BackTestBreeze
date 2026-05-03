@@ -40,13 +40,13 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE   = "01-Apr-2026"   # format: DD-Mon-YYYY
-END_DATE     = "28-Apr-2026"   # format: DD-Mon-YYYY
+START_DATE   = "01-Jan-2026"   # format: DD-Mon-YYYY
+END_DATE     = "05-May-2026"   # format: DD-Mon-YYYY
 
-CAPITAL      = 100000.0        # capital per contract (used for position sizing)
-FAST_PERIOD  = 9               # fast EMA period
-SLOW_PERIOD  = 21              # slow EMA period
-INTERVAL     = "5minute"       # candle interval — keep as 5minute for this strategy
+CAPITAL      = 30000        # capital per contract (used for position sizing)
+FAST_PERIOD  = 45               # fast EMA period
+SLOW_PERIOD  = 105              # slow EMA period
+INTERVAL     = "1minute"       # candle interval — keep as 5minute for this strategy
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
