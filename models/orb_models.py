@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
+from typing import Optional
 
 
 class BreakoutDirection(str, Enum):
@@ -29,6 +30,12 @@ class ORBTradeResult:
     target: float
     stop_loss: float
     exit_price: float
-    exit_reason: str   # "target" | "stop_loss" | "close"
+    exit_reason: str            # "target" | "stop_loss" | "close"
     pnl: float
     breakout_time: str
+
+    # Momentum & trend fields (populated when filters are enabled)
+    momentum_score: Optional[float] = None      # composite 0–100
+    trend_direction: Optional[str]  = None      # "UPTREND" | "DOWNTREND" | "SIDEWAYS"
+    trend_strength: Optional[float] = None      # 0–100
+    intraday_trend: Optional[str]   = None      # intraday direction for that day
