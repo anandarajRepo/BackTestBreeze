@@ -238,6 +238,32 @@ class MomentumScoringService:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
+    def score_all_symbols(
+        self,
+        symbols: list[tuple[str, str]],  # [(stock_code, exchange_code), ...]
+        as_of_date: Optional[datetime] = None,
+        lookback_days: int = 30,
+    ) -> list["MomentumScore"]:
+        """
+        Score every symbol in *symbols* and return list sorted by composite
+        score descending.  Failures produce a score of 0 so they naturally
+        rank last.
+        """
+        scores: list[MomentumScore] = []
+        total = len(symbols)
+        for i, (stock_code, exchange_code) in enumerate(symbols, 1):
+            print(f"  [{i}/{total}] Scoring {stock_code}…", end="\r", flush=True)
+            score = self.calculate_momentum_score(
+                stock_code=stock_code,
+                exchange_code=exchange_code,
+                as_of_date=as_of_date,
+                lookback_days=lookback_days,
+            )
+            scores.append(score)
+        print()  # newline after progress
+        scores.sort(key=lambda s: s.composite_score, reverse=True)
+        return scores
+
     def calculate_momentum_score(
         self,
         stock_code: str,
