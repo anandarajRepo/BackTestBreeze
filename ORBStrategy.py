@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from breeze_connect import BreezeConnect
 from dotenv import load_dotenv
 
+from services.momentum_service import MomentumScoringService
 from services.orb_data_service import ORBDataService
+from services.trend_direction_service import TrendDirectionService
 from strategy.orb_strategy import ORBStrategy
 
 load_dotenv()
@@ -132,6 +134,19 @@ START_DATE        = "25-Jan-2026 9:15:00"
 END_DATE          = "28-Apr-2026 15:29:59"
 INTERVAL          = "1minute"
 
+# ── Momentum & Trend Filter Configuration ─────────────────────────────────────
+# Set to True to enable pre-trade momentum screening (mirrors FyersORB behaviour).
+ENABLE_MOMENTUM_FILTER = True
+MIN_MOMENTUM_SCORE     = 50.0   # 0–100; trades skipped below this composite score
+MOMENTUM_LOOKBACK_DAYS = 30     # Daily candles used for momentum calculation
+
+# Set to True to only enter trades that align with the prevailing trend direction.
+ENABLE_TREND_FILTER    = True
+TREND_FILTER_MODE      = "STRICT"   # "STRICT" | "LENIENT"
+TREND_LOOKBACK_DAYS    = 10         # Trading days used for historical trend
+HISTORICAL_WEIGHT      = 0.6        # Weight for daily-trend signal in combined score
+INTRADAY_WEIGHT        = 0.4        # Weight for intraday-trend signal in combined score
+
 REPORT_CSV = "orb_backtest_report.csv"
 
 # ── Multi-Symbol Helpers ───────────────────────────────────────────────────────
@@ -163,17 +178,29 @@ def run_symbol(stock_code: str, exchange_code: str) -> SymbolSummary:
     try:
         orb_data_service = ORBDataService(breeze)
 
+        momentum_svc = MomentumScoringService(breeze) if ENABLE_MOMENTUM_FILTER else None
+        trend_svc    = TrendDirectionService(breeze)  if ENABLE_TREND_FILTER    else None
+
         strategy = ORBStrategy(
-            orb_data_service  = orb_data_service,
-            stock_code        = stock_code,
-            exchange_code     = exchange_code,
-            quantity          = QUANTITY,
-            orb_minutes       = ORB_MINUTES,
-            stop_loss_pct     = STOP_LOSS_PCT,
-            risk_reward_ratio = RISK_REWARD_RATIO,
-            start_date        = START_DATE,
-            end_date          = END_DATE,
-            interval          = INTERVAL,
+            orb_data_service     = orb_data_service,
+            stock_code           = stock_code,
+            exchange_code        = exchange_code,
+            quantity             = QUANTITY,
+            orb_minutes          = ORB_MINUTES,
+            stop_loss_pct        = STOP_LOSS_PCT,
+            risk_reward_ratio    = RISK_REWARD_RATIO,
+            start_date           = START_DATE,
+            end_date             = END_DATE,
+            interval             = INTERVAL,
+            momentum_service     = momentum_svc,
+            min_momentum_score   = MIN_MOMENTUM_SCORE,
+            momentum_lookback_days = MOMENTUM_LOOKBACK_DAYS,
+            trend_service        = trend_svc,
+            trend_filter         = ENABLE_TREND_FILTER,
+            trend_filter_mode    = TREND_FILTER_MODE,
+            trend_lookback_days  = TREND_LOOKBACK_DAYS,
+            historical_weight    = HISTORICAL_WEIGHT,
+            intraday_weight      = INTRADAY_WEIGHT,
         )
 
         results = strategy.run_backtest()
@@ -338,17 +365,29 @@ if MULTI_SYMBOL:
 else:
     orb_data_service = ORBDataService(breeze)
 
+    momentum_svc = MomentumScoringService(breeze) if ENABLE_MOMENTUM_FILTER else None
+    trend_svc    = TrendDirectionService(breeze)  if ENABLE_TREND_FILTER    else None
+
     strategy = ORBStrategy(
-        orb_data_service  = orb_data_service,
-        stock_code        = STOCK_CODE,
-        exchange_code     = EXCHANGE_CODE,
-        quantity          = QUANTITY,
-        orb_minutes       = ORB_MINUTES,
-        stop_loss_pct     = STOP_LOSS_PCT,
-        risk_reward_ratio = RISK_REWARD_RATIO,
-        start_date        = START_DATE,
-        end_date          = END_DATE,
-        interval          = INTERVAL,
+        orb_data_service     = orb_data_service,
+        stock_code           = STOCK_CODE,
+        exchange_code        = EXCHANGE_CODE,
+        quantity             = QUANTITY,
+        orb_minutes          = ORB_MINUTES,
+        stop_loss_pct        = STOP_LOSS_PCT,
+        risk_reward_ratio    = RISK_REWARD_RATIO,
+        start_date           = START_DATE,
+        end_date             = END_DATE,
+        interval             = INTERVAL,
+        momentum_service     = momentum_svc,
+        min_momentum_score   = MIN_MOMENTUM_SCORE,
+        momentum_lookback_days = MOMENTUM_LOOKBACK_DAYS,
+        trend_service        = trend_svc,
+        trend_filter         = ENABLE_TREND_FILTER,
+        trend_filter_mode    = TREND_FILTER_MODE,
+        trend_lookback_days  = TREND_LOOKBACK_DAYS,
+        historical_weight    = HISTORICAL_WEIGHT,
+        intraday_weight      = INTRADAY_WEIGHT,
     )
 
     strategy.run_backtest()
