@@ -462,8 +462,9 @@ def run_portfolio_orb_backtest(
                     ))
                     break  # Only first breakout per stock per day
 
-        # Sort candidates by breakout time (earliest first) and take up to MAX_DAILY_TRADES
-        candidates.sort(key=lambda c: c.breakout_time)
+        # First-crossover priority: order strictly by when the breakout occurred,
+        # ignoring momentum rank. The earliest MAX_DAILY_TRADES crossovers win.
+        candidates.sort(key=lambda c: datetime.fromisoformat(c.breakout_time))
         selected = candidates[:MAX_DAILY_TRADES]
 
         day_pnl    = 0.0
