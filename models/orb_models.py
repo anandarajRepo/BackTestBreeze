@@ -39,3 +39,11 @@ class ORBTradeResult:
     trend_direction: Optional[str]  = None      # "UPTREND" | "DOWNTREND" | "SIDEWAYS"
     trend_strength: Optional[float] = None      # 0–100
     intraday_trend: Optional[str]   = None      # intraday direction for that day
+
+    # Crossover skip & quality
+    crossover_skip_applied: bool         = False  # True when 2nd crossover rule fired
+    breakout_quality_score: Optional[float] = None  # 0–100 breakout quality
+
+    # Partial exit (1% take-profit trigger)
+    partial_exit_price: Optional[float] = None  # price of 50% exit
+    partial_exit_qty: int               = 0     # qty exited at partial price
