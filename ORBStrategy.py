@@ -197,8 +197,11 @@ class DailySummary:
 
 
 def parse_symbol(symbol: str) -> tuple[str, str]:
-    """'NSE:ONGC-EQ' → ('ONGC', 'NSE')"""
-    exchange, rest = symbol.split(":", 1)
+    """'NSE:ONGC-EQ' → ('ONGC', 'NSE'); 'ONGC' → ('ONGC', 'NSE')"""
+    if ":" in symbol:
+        exchange, rest = symbol.split(":", 1)
+    else:
+        exchange, rest = "NSE", symbol
     stock_code = rest.removesuffix("-EQ")
     return stock_code, exchange
 
