@@ -142,7 +142,7 @@ STOP_LOSS_PCT     = 1.5
 RISK_REWARD_RATIO = 2.0
 START_DATE        = "30-Apr-2026 9:15:00"
 END_DATE          = "30-Apr-2026 15:29:59"
-INTERVAL          = "1minute"
+INTERVAL          = "1second"
 
 # ── Portfolio Selection ───────────────────────────────────────────────────────
 
