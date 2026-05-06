@@ -420,11 +420,14 @@ def run_portfolio_orb_backtest(
 
         for stock_code, exchange_code, ms in top_stocks:
             day_candles = stock_candles.get(stock_code, {}).get(trade_date)
-            if not day_candles or len(day_candles) <= ORB_MINUTES:
+            if not day_candles:
                 continue
 
             orb_candles      = ORBDataService.get_orb_candles(day_candles, ORB_MINUTES)
             post_orb_candles = ORBDataService.get_post_orb_candles(day_candles, ORB_MINUTES)
+
+            if not orb_candles or not post_orb_candles:
+                continue
             orb              = _build_open_range(orb_candles)
 
             # Scan post-ORB candles for the first breakout
