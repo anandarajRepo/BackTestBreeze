@@ -3,7 +3,7 @@ Intraday data service for Open Range Breakout backtest via Breeze API.
 """
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from breeze_connect import BreezeConnect
 
@@ -52,10 +52,18 @@ class ORBDataService:
 
     @staticmethod
     def get_orb_candles(day_candles: list[dict], orb_minutes: int) -> list[dict]:
-        """Return the first `orb_minutes` candles of the trading day."""
-        return day_candles[:orb_minutes]
+        """Return candles within the first orb_minutes of the trading day (time-based, not count-based)."""
+        if not day_candles:
+            return []
+        first_dt = datetime.fromisoformat(day_candles[0]["datetime"])
+        cutoff = first_dt + timedelta(minutes=orb_minutes)
+        return [c for c in day_candles if datetime.fromisoformat(c["datetime"]) < cutoff]
 
     @staticmethod
     def get_post_orb_candles(day_candles: list[dict], orb_minutes: int) -> list[dict]:
-        """Return candles after the ORB formation period."""
-        return day_candles[orb_minutes:]
+        """Return candles after the ORB formation period (time-based, not count-based)."""
+        if not day_candles:
+            return []
+        first_dt = datetime.fromisoformat(day_candles[0]["datetime"])
+        cutoff = first_dt + timedelta(minutes=orb_minutes)
+        return [c for c in day_candles if datetime.fromisoformat(c["datetime"]) >= cutoff]
