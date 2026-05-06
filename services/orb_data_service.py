@@ -18,7 +18,7 @@ class ORBDataService:
         exchange_code: str,
         start_date: str,
         end_date: str,
-        interval: str = "1minute",
+        interval: str = "1second",
     ) -> list[dict]:
         """Fetch minute-level candles for the given date range."""
         from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S")

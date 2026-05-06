@@ -40,8 +40,8 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE   = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE     = "05-May-2026"   # format: DD-Mon-YYYY
+START_DATE     = "01-Apr-2026"   # format: DD-Mon-YYYY
+END_DATE       = "05-May-2026"   # format: DD-Mon-YYYY
 
 CAPITAL             = 100000     # capital per contract (used for position sizing)
 FAST_PERIOD         = 45        # fast EMA period
