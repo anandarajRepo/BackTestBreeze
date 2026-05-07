@@ -243,6 +243,8 @@ class MomentumScoringService:
         symbols: list[tuple[str, str]],  # [(stock_code, exchange_code), ...]
         as_of_date: Optional[datetime] = None,
         lookback_days: int = 30,
+        min_score: float = 50.0,
+        top_n: Optional[int] = None,
     ) -> list["MomentumScore"]:
         """
         Score every symbol in *symbols* and return list sorted by composite
@@ -262,6 +264,22 @@ class MomentumScoringService:
             scores.append(score)
         print()  # newline after progress
         scores.sort(key=lambda s: s.composite_score, reverse=True)
+
+        n_failed    = sum(1 for s in scores if s.data_quality == "INSUFFICIENT")
+        n_scored    = total - n_failed
+        n_qualified = sum(1 for s in scores if s.composite_score >= min_score)
+        n_return    = top_n if top_n is not None else len(scores)
+        logger.info(
+            f"Momentum screening complete: {n_scored} scored, {n_failed} failed, "
+            f"{n_qualified} qualified (>={min_score}), returning top {n_return}"
+        )
+        for rank, ms in enumerate(scores[:n_return], 1):
+            logger.info(
+                f"  #{rank} {ms.symbol}: {ms.composite_score:.1f}/100 "
+                f"(ROC5d:{ms.roc_5d:+.1f}% RSI:{ms.rsi_14:.0f} "
+                f"VolRatio:{ms.volume_ratio_5d:.2f} Close:Rs.{ms.last_close:.2f})"
+            )
+
         return scores
 
     def calculate_momentum_score(

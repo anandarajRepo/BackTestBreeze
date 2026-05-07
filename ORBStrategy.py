@@ -17,11 +17,14 @@ Flow per backtest run:
 """
 
 import csv
+import logging
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, date
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from breeze_connect import BreezeConnect
 from dotenv import load_dotenv
@@ -293,6 +296,8 @@ def score_all_and_select_top(
         symbols=parsed,
         as_of_date=as_of_date,
         lookback_days=MOMENTUM_LOOKBACK_DAYS,
+        min_score=MIN_MOMENTUM_SCORE,
+        top_n=top_n,
     )
 
     # Print ranked table
@@ -308,23 +313,20 @@ def score_all_and_select_top(
         )
     print()
 
-    # Select top N that meet minimum score threshold
-    top = [
-        (stock_code, exchange_code, ms)
-        for stock_code, exchange_code, ms in (
-            (parse_symbol(ms.symbol)[0], parse_symbol(ms.symbol)[1], ms)
-            for ms in scores[:top_n]
-        )
-        if ms.composite_score >= MIN_MOMENTUM_SCORE
-    ]
-
     # Rebuild properly using the already-parsed tuples from `parsed`
-    symbol_map = {sc: (sc, exc) for sc, exc in parsed}
     top_structured: list[tuple[str, str, MomentumScore]] = []
     for rank, ms in enumerate(scores[:top_n], 1):
         sc, exc = parse_symbol(ms.symbol)
         if ms.composite_score >= MIN_MOMENTUM_SCORE:
             top_structured.append((sc, exc, ms))
+
+    logger.info(f"Momentum screening selected {len(top_structured)} stocks:")
+    for rank, (sc, exc, ms) in enumerate(top_structured, 1):
+        logger.info(
+            f"  #{rank} {ms.symbol}: Score={ms.composite_score:.1f}/100 "
+            f"ROC5d={ms.roc_5d:+.1f}% RSI={ms.rsi_14:.0f} "
+            f"Close=Rs.{ms.last_close:.2f}"
+        )
 
     filtered_out = top_n - len(top_structured)
     print(f"  Selected {len(top_structured)} stocks for ORB scanning "
