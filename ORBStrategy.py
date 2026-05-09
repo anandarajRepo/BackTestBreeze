@@ -21,7 +21,7 @@ import logging
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ MAX_DAILY_TRADES = 3    # Maximum trades to take per calendar day
 # ── Momentum Scoring ──────────────────────────────────────────────────────────
 
 MIN_MOMENTUM_SCORE     = 50.0
-MOMENTUM_LOOKBACK_DAYS = 30
+MOMENTUM_LOOKBACK_DAYS = 60
 
 # ── Trend Filter ──────────────────────────────────────────────────────────────
 
@@ -627,11 +627,13 @@ if __name__ == "__main__" or True:
     orb_data_svc = ORBDataService(breeze)
     trend_svc    = TrendDirectionService(breeze) if ENABLE_TREND_FILTER else None
 
-    # Score with data available up to midnight of the start date so no
-    # intraday candle from the first trade day leaks into momentum scoring
-    # (matches FyersORB which runs screening before market open using prior-day closes).
+    # Use end of the previous calendar day (23:59:59) so the Breeze API does
+    # not return a same-day daily candle whose timestamp is midnight of the
+    # start date — that candle has a stale/incorrect close and shifts ROC/RSI.
+    # FyersORB runs at ~09:10 so its to_date naturally falls before any Apr-30
+    # candle; this mirrors that behaviour for the backtest.
     start_dt   = datetime.strptime(START_DATE, "%d-%b-%Y %H:%M:%S")
-    as_of_date = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    as_of_date = start_dt.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(seconds=1)
 
     # Phase 1: Score all, select top N
     top_stocks = score_all_and_select_top(
