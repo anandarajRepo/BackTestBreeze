@@ -155,7 +155,7 @@ MAX_DAILY_TRADES = 3    # Maximum trades to take per calendar day
 # ── Momentum Scoring ──────────────────────────────────────────────────────────
 
 MIN_MOMENTUM_SCORE     = 50.0
-MOMENTUM_LOOKBACK_DAYS = 60
+MOMENTUM_LOOKBACK_DAYS = 200  # needs ~157 trading days for Wilder RSI warmup to converge
 
 # ── Trend Filter ──────────────────────────────────────────────────────────────
 
