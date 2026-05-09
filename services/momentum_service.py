@@ -115,13 +115,9 @@ class MomentumScoringService:
         deltas = np.diff(closes)
         gains  = np.where(deltas > 0, deltas, 0.0)
         losses = np.where(deltas < 0, -deltas, 0.0)
-        # Wilder's smoothed RSI: seed with SMA of first `period` bars, then EMA
-        avg_gain = float(np.mean(gains[:period]))
-        avg_loss = float(np.mean(losses[:period]))
-        alpha = 1.0 / period
-        for g, l in zip(gains[period:], losses[period:]):
-            avg_gain = avg_gain * (1 - alpha) + g * alpha
-            avg_loss = avg_loss * (1 - alpha) + l * alpha
+        # SMA of the most-recent `period` bars (matches FyersORB / Cutler's RSI)
+        avg_gain = float(np.mean(gains[-period:]))
+        avg_loss = float(np.mean(losses[-period:]))
         if avg_loss == 0:
             return 100.0 if avg_gain > 0 else 50.0
         rs = avg_gain / avg_loss
