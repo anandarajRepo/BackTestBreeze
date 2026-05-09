@@ -2,6 +2,8 @@
 ORB Portfolio Backtest — Momentum-ranked Open Range Breakout
 
 Flow per backtest run:
+  0. Pre-market: run trend direction analysis for Nifty 50 + all top stocks.
+                 Only stocks whose trend aligns with the breakout direction are traded.
   1. Score ALL symbols at once using MomentumScoringService.
   2. Select top TOP_N_STOCKS by composite momentum score.
   3. Fetch 1-minute intraday data for each of those stocks.
@@ -32,7 +34,7 @@ from dotenv import load_dotenv
 from models.orb_models import BreakoutDirection, OpenRange, ORBTradeResult
 from services.momentum_service import MomentumScore, MomentumScoringService
 from services.orb_data_service import ORBDataService
-from services.trend_direction_service import TrendDirectionService
+from services.trend_direction_service import TrendAnalysis, TrendDirectionService
 from strategy.orb_strategy import ORBStrategy
 
 load_dotenv()
@@ -164,6 +166,12 @@ TREND_FILTER_MODE   = "STRICT"
 TREND_LOOKBACK_DAYS = 10
 HISTORICAL_WEIGHT   = 0.6
 INTRADAY_WEIGHT     = 0.4
+
+# ── Nifty 50 benchmark (pre-market context) ───────────────────────────────────
+
+NIFTY50_STOCK_CODE   = "NIFTY"
+NIFTY50_EXCHANGE     = "NSE"
+ANALYZE_NIFTY50      = True          # set False to skip index analysis
 
 REPORT_CSV = "orb_portfolio_report.csv"
 
@@ -334,13 +342,95 @@ def score_all_and_select_top(
     return top_structured
 
 
+# ── Phase 1b: Pre-market trend direction analysis ─────────────────────────────
+
+
+def run_premarket_trend_analysis(
+    trend_svc: TrendDirectionService,
+    top_stocks: list[tuple[str, str, MomentumScore]],
+    as_of_date: datetime,
+) -> dict[str, TrendAnalysis]:
+    """
+    Mirror FyersORB pre-market trend analysis:
+      • Analyze Nifty 50 as market-wide context.
+      • Analyze each selected stock's historical trend.
+      • Log a summary (UPTREND / DOWNTREND / SIDEWAYS counts) and per-stock details.
+
+    Returns a dict of stock_code → TrendAnalysis used later to gate orders.
+    """
+    logger.info("=" * 60)
+    logger.info("RUNNING PRE-MARKET TREND DIRECTION ANALYSIS")
+    logger.info("=" * 60)
+
+    # ── Nifty 50 ─────────────────────────────────────────────────────────────
+    nifty_trend: Optional[TrendAnalysis] = None
+    if ANALYZE_NIFTY50:
+        try:
+            nifty_trend = trend_svc.analyze_trend(
+                stock_code    = NIFTY50_STOCK_CODE,
+                exchange_code = NIFTY50_EXCHANGE,
+                as_of_date    = as_of_date,
+                lookback_days = TREND_LOOKBACK_DAYS,
+            )
+            logger.info(
+                f"Nifty 50 Trend: {nifty_trend.trend.value} "
+                f"(strength={nifty_trend.strength:.1f}, slope={nifty_trend.price_slope:+.2f}%)"
+            )
+        except Exception as exc:
+            logger.warning(f"Nifty 50 trend analysis failed: {exc}")
+
+    # ── Per-stock historical trend ────────────────────────────────────────────
+    hist_trends: dict[str, TrendAnalysis] = {}
+    for stock_code, exchange_code, _ in top_stocks:
+        try:
+            trend = trend_svc.analyze_trend(
+                stock_code    = stock_code,
+                exchange_code = exchange_code,
+                as_of_date    = as_of_date,
+                lookback_days = TREND_LOOKBACK_DAYS,
+            )
+            hist_trends[stock_code] = trend
+        except Exception as exc:
+            logger.warning(f"Trend analysis failed for {stock_code}: {exc}")
+
+    # ── Summary counts ────────────────────────────────────────────────────────
+    from services.trend_direction_service import TrendDirection
+    up_count   = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.UPTREND)
+    down_count = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.DOWNTREND)
+    side_count = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.SIDEWAYS)
+
+    logger.info(
+        f"Trend analysis complete: {up_count} UPTREND | {down_count} DOWNTREND | {side_count} SIDEWAYS"
+    )
+
+    # ── Nifty 50 detail line ──────────────────────────────────────────────────
+    if nifty_trend:
+        logger.info(
+            f"Nifty 50: {nifty_trend.trend.value} "
+            f"(strength={nifty_trend.strength:.1f}, slope={nifty_trend.price_slope:+.2f}%, "
+            f"EMA={nifty_trend.ema_signal.value})"
+        )
+
+    # ── Per-stock detail lines ────────────────────────────────────────────────
+    for stock_code, _, ms in top_stocks:
+        trend = hist_trends.get(stock_code)
+        if trend:
+            logger.info(
+                f"  {ms.symbol}: {trend.trend.value}  "
+                f"strength={trend.strength:.1f}  slope={trend.price_slope:+.2f}%"
+            )
+
+    return hist_trends
+
+
 # ── Phase 2 & 3: Per-day ORB scan across top stocks ──────────────────────────
 
 
 def run_portfolio_orb_backtest(
     orb_data_svc: ORBDataService,
     trend_svc: Optional[TrendDirectionService],
-    top_stocks: list[tuple[str, str, MomentumScore]],  # (code, exchange, score)
+    top_stocks: list[tuple[str, str, MomentumScore]],
+    hist_trends: Optional[dict[str, TrendAnalysis]] = None,  # pre-computed from run_premarket_trend_analysis
 ) -> list[PortfolioTradeResult]:
     """
     For each trading day:
@@ -379,24 +469,26 @@ def run_portfolio_orb_backtest(
           f"(max {MAX_DAILY_TRADES} trades/day)")
     print(f"{'='*70}\n")
 
-    # Pre-compute per-stock trend analysis (once, using start date as cutoff)
+    # Use pre-computed trends (from run_premarket_trend_analysis) or fall back to
+    # computing them inline when called without pre-market analysis.
     first_date = all_dates[0]
     as_of_date = datetime(first_date.year, first_date.month, first_date.day)
-    hist_trends = {}
-    if trend_svc and ENABLE_TREND_FILTER:
-        print("  Computing historical trend for each stock…")
-        for stock_code, exchange_code, _ in top_stocks:
-            try:
-                trend = trend_svc.analyze_trend(
-                    stock_code=stock_code,
-                    exchange_code=exchange_code,
-                    as_of_date=as_of_date,
-                    lookback_days=TREND_LOOKBACK_DAYS,
-                )
-                hist_trends[stock_code] = trend
-            except Exception as exc:
-                print(f"    {stock_code}: trend error — {exc}")
-        print()
+    if hist_trends is None:
+        hist_trends = {}
+        if trend_svc and ENABLE_TREND_FILTER:
+            print("  Computing historical trend for each stock…")
+            for stock_code, exchange_code, _ in top_stocks:
+                try:
+                    trend = trend_svc.analyze_trend(
+                        stock_code=stock_code,
+                        exchange_code=exchange_code,
+                        as_of_date=as_of_date,
+                        lookback_days=TREND_LOOKBACK_DAYS,
+                    )
+                    hist_trends[stock_code] = trend
+                except Exception as exc:
+                    print(f"    {stock_code}: trend error — {exc}")
+            print()
 
     momentum_rank_map = {sc: rank for rank, (sc, _, _) in enumerate(top_stocks, 1)}
     momentum_score_map = {sc: ms.composite_score for sc, _, ms in top_stocks}
@@ -646,11 +738,21 @@ if __name__ == "__main__" or True:
     if not top_stocks:
         print("No stocks passed the momentum filter. Exiting.")
     else:
+        # Phase 1b: Pre-market trend direction analysis (mirrors FyersORB)
+        hist_trends: Optional[dict] = None
+        if trend_svc and ENABLE_TREND_FILTER:
+            hist_trends = run_premarket_trend_analysis(
+                trend_svc  = trend_svc,
+                top_stocks = top_stocks,
+                as_of_date = as_of_date,
+            )
+
         # Phase 2 & 3: ORB scan with daily cap
         results = run_portfolio_orb_backtest(
-            orb_data_svc=orb_data_svc,
-            trend_svc=trend_svc,
-            top_stocks=top_stocks,
+            orb_data_svc = orb_data_svc,
+            trend_svc    = trend_svc,
+            top_stocks   = top_stocks,
+            hist_trends  = hist_trends,
         )
 
         print_final_report(results)
