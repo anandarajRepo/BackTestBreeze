@@ -313,12 +313,11 @@ def score_all_and_select_top(
         )
     print()
 
-    # Rebuild properly using the already-parsed tuples from `parsed`
+    # score_all_symbols already filtered by min_score and sliced to top_n
     top_structured: list[tuple[str, str, MomentumScore]] = []
-    for rank, ms in enumerate(scores[:top_n], 1):
+    for ms in scores:
         sc, exc = parse_symbol(ms.symbol)
-        if ms.composite_score >= MIN_MOMENTUM_SCORE:
-            top_structured.append((sc, exc, ms))
+        top_structured.append((sc, exc, ms))
 
     logger.info(f"Momentum screening selected {len(top_structured)} stocks:")
     for rank, (sc, exc, ms) in enumerate(top_structured, 1):
@@ -328,9 +327,8 @@ def score_all_and_select_top(
             f"Close=Rs.{ms.last_close:.2f}"
         )
 
-    filtered_out = top_n - len(top_structured)
     print(f"  Selected {len(top_structured)} stocks for ORB scanning "
-          f"(filtered {filtered_out} below min score {MIN_MOMENTUM_SCORE})")
+          f"(min score >= {MIN_MOMENTUM_SCORE}, top {top_n})")
     print(f"{'='*70}\n")
 
     return top_structured
@@ -629,9 +627,11 @@ if __name__ == "__main__" or True:
     orb_data_svc = ORBDataService(breeze)
     trend_svc    = TrendDirectionService(breeze) if ENABLE_TREND_FILTER else None
 
-    # Determine as_of_date from START_DATE (day before test period)
-    start_dt  = datetime.strptime(START_DATE, "%d-%b-%Y %H:%M:%S")
-    as_of_date = start_dt  # momentum scored up to (not including) start of test
+    # Score with data available up to midnight of the start date so no
+    # intraday candle from the first trade day leaks into momentum scoring
+    # (matches FyersORB which runs screening before market open using prior-day closes).
+    start_dt   = datetime.strptime(START_DATE, "%d-%b-%Y %H:%M:%S")
+    as_of_date = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Phase 1: Score all, select top N
     top_stocks = score_all_and_select_top(

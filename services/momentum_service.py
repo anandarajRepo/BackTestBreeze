@@ -247,11 +247,13 @@ class MomentumScoringService:
         top_n: Optional[int] = None,
     ) -> list["MomentumScore"]:
         """
-        Score every symbol in *symbols* and return list sorted by composite
-        score descending.  Failures produce a score of 0 so they naturally
-        rank last.
+        Score every symbol in *symbols*, filter to those with composite score
+        >= min_score, and return the top *top_n* sorted by score descending.
+        Mirrors FyersORB screen_all_symbols: INSUFFICIENT stocks are excluded
+        before min_score filtering and top_n slicing.
         """
-        scores: list[MomentumScore] = []
+        all_scores: list[MomentumScore] = []
+        fail_count = 0
         total = len(symbols)
         for i, (stock_code, exchange_code) in enumerate(symbols, 1):
             print(f"  [{i}/{total}] Scoring {stock_code}…", end="\r", flush=True)
@@ -261,26 +263,30 @@ class MomentumScoringService:
                 as_of_date=as_of_date,
                 lookback_days=lookback_days,
             )
-            scores.append(score)
+            if score.data_quality == "INSUFFICIENT":
+                fail_count += 1
+            else:
+                all_scores.append(score)
         print()  # newline after progress
-        scores.sort(key=lambda s: s.composite_score, reverse=True)
 
-        n_failed    = sum(1 for s in scores if s.data_quality == "INSUFFICIENT")
-        n_scored    = total - n_failed
-        n_qualified = sum(1 for s in scores if s.composite_score >= min_score)
-        n_return    = top_n if top_n is not None else len(scores)
+        all_scores.sort(key=lambda s: s.composite_score, reverse=True)
+
+        n_scored    = len(all_scores)
+        qualified   = [s for s in all_scores if s.composite_score >= min_score]
+        n_qualified = len(qualified)
+        top_stocks  = qualified[:top_n] if top_n is not None else qualified
         logger.info(
-            f"Momentum screening complete: {n_scored} scored, {n_failed} failed, "
-            f"{n_qualified} qualified (>={min_score}), returning top {n_return}"
+            f"Momentum screening complete: {n_scored} scored, {fail_count} failed, "
+            f"{n_qualified} qualified (>={min_score}), returning top {len(top_stocks)}"
         )
-        for rank, ms in enumerate(scores[:n_return], 1):
+        for rank, ms in enumerate(top_stocks, 1):
             logger.info(
                 f"  #{rank} {ms.symbol}: {ms.composite_score:.1f}/100 "
                 f"(ROC5d:{ms.roc_5d:+.1f}% RSI:{ms.rsi_14:.0f} "
                 f"VolRatio:{ms.volume_ratio_5d:.2f} Close:Rs.{ms.last_close:.2f})"
             )
 
-        return scores
+        return top_stocks
 
     def calculate_momentum_score(
         self,
