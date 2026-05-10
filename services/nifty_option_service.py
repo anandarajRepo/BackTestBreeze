@@ -76,6 +76,23 @@ class NiftyOptionService:
         candles = resp.get("Success") or []
         return candles
 
+    def get_nifty_spot_candles(
+        self,
+        start: datetime,
+        end: datetime,
+        interval: str = "5minute",
+    ) -> list[dict]:
+        """Fetch Nifty 50 spot (cash) candles for signal generation."""
+        resp = self.breeze.get_historical_data_v2(
+            interval=interval,
+            from_date=start,
+            to_date=end,
+            stock_code="NIFTY",
+            exchange_code="NSE",
+            product_type="cash",
+        )
+        return resp.get("Success") or []
+
     # ── Weekly expiry calendar ────────────────────────────────────────────────
 
     @staticmethod
