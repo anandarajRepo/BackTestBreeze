@@ -56,10 +56,16 @@ class ORBDataService:
         if not day_candles:
             return []
         first_dt = datetime.fromisoformat(day_candles[0]["datetime"])
-        # Anchor to fixed market open (9:15 AM), not the first available candle
+        # Anchor to fixed market open (9:15 AM), not the first available candle.
+        # Use a closed-open window [market_open, cutoff) so pre-open call-auction
+        # candles (before 9:15) are excluded; they inflate the ORB range and make
+        # post-9:30 breakouts impossible.
         market_open = first_dt.replace(hour=9, minute=15, second=0, microsecond=0)
         cutoff = market_open + timedelta(minutes=orb_minutes)
-        return [c for c in day_candles if datetime.fromisoformat(c["datetime"]) < cutoff]
+        return [
+            c for c in day_candles
+            if market_open <= datetime.fromisoformat(c["datetime"]) < cutoff
+        ]
 
     @staticmethod
     def get_post_orb_candles(day_candles: list[dict], orb_minutes: int) -> list[dict]:
