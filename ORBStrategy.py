@@ -477,9 +477,10 @@ def run_portfolio_orb_backtest(
                     ))
                     break  # Only first breakout per stock per day
 
-        # First-crossover priority: order strictly by when the breakout occurred,
-        # ignoring momentum rank. The earliest MAX_DAILY_TRADES crossovers win.
-        candidates.sort(key=lambda c: datetime.fromisoformat(c.breakout_time))
+        # Momentum-rank priority: among all breakout candidates, prefer the
+        # highest-ranked stocks (rank 1 = best). This matches live FyersORB
+        # behaviour where momentum rank determines which trades are placed.
+        candidates.sort(key=lambda c: momentum_rank_map.get(c.stock_code, 9999))
         selected = candidates[:MAX_DAILY_TRADES]
 
         day_pnl    = 0.0
