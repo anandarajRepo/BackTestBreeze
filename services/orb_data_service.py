@@ -52,18 +52,22 @@ class ORBDataService:
 
     @staticmethod
     def get_orb_candles(day_candles: list[dict], orb_minutes: int) -> list[dict]:
-        """Return candles within the first orb_minutes of the trading day (time-based, not count-based)."""
+        """Return candles within the ORB window: 9:15 AM to 9:15 + orb_minutes."""
         if not day_candles:
             return []
         first_dt = datetime.fromisoformat(day_candles[0]["datetime"])
-        cutoff = first_dt + timedelta(minutes=orb_minutes)
+        # Anchor to fixed market open (9:15 AM), not the first available candle
+        market_open = first_dt.replace(hour=9, minute=15, second=0, microsecond=0)
+        cutoff = market_open + timedelta(minutes=orb_minutes)
         return [c for c in day_candles if datetime.fromisoformat(c["datetime"]) < cutoff]
 
     @staticmethod
     def get_post_orb_candles(day_candles: list[dict], orb_minutes: int) -> list[dict]:
-        """Return candles after the ORB formation period (time-based, not count-based)."""
+        """Return candles after the ORB window: 9:15 + orb_minutes onwards."""
         if not day_candles:
             return []
         first_dt = datetime.fromisoformat(day_candles[0]["datetime"])
-        cutoff = first_dt + timedelta(minutes=orb_minutes)
+        # Anchor to fixed market open (9:15 AM), not the first available candle
+        market_open = first_dt.replace(hour=9, minute=15, second=0, microsecond=0)
+        cutoff = market_open + timedelta(minutes=orb_minutes)
         return [c for c in day_candles if datetime.fromisoformat(c["datetime"]) >= cutoff]
