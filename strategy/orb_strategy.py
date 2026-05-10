@@ -743,9 +743,9 @@ def run_premarket_trend_analysis(
 
     Returns stock_code → TrendAnalysis mapping used to gate orders.
     """
-    logger.info("=" * 60)
-    logger.info("RUNNING PRE-MARKET TREND DIRECTION ANALYSIS")
-    logger.info("=" * 60)
+    print("=" * 60)
+    print("RUNNING PRE-MARKET TREND DIRECTION ANALYSIS")
+    print("=" * 60)
 
     # ── Nifty 50 ─────────────────────────────────────────────────────────────
     nifty_trend: Optional[TrendAnalysis] = None
@@ -758,7 +758,7 @@ def run_premarket_trend_analysis(
                 lookback_days = trend_lookback_days,
             )
         except Exception as exc:
-            logger.warning(f"Nifty 50 trend analysis failed: {exc}")
+            print(f"  WARNING: Nifty 50 trend analysis failed: {exc}")
 
     # ── Per-stock historical trend ────────────────────────────────────────────
     hist_trends: dict[str, TrendAnalysis] = {}
@@ -772,20 +772,20 @@ def run_premarket_trend_analysis(
             )
             hist_trends[stock_code] = trend
         except Exception as exc:
-            logger.warning(f"Trend analysis failed for {stock_code}: {exc}")
+            print(f"  WARNING: Trend analysis failed for {stock_code}: {exc}")
 
     # ── Summary counts ────────────────────────────────────────────────────────
     up_count   = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.UPTREND)
     down_count = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.DOWNTREND)
     side_count = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.SIDEWAYS)
 
-    logger.info(
+    print(
         f"Trend analysis complete: {up_count} UPTREND | {down_count} DOWNTREND | {side_count} SIDEWAYS"
     )
 
     # ── Nifty 50 detail line ──────────────────────────────────────────────────
     if nifty_trend:
-        logger.info(
+        print(
             f"Nifty 50: {nifty_trend.trend.value} "
             f"(strength={nifty_trend.strength:.1f}, slope={nifty_trend.price_slope:+.2f}%, "
             f"EMA={nifty_trend.ema_signal.value})"
@@ -795,7 +795,7 @@ def run_premarket_trend_analysis(
     for stock_code, _, ms in top_stocks:
         trend = hist_trends.get(stock_code)
         if trend:
-            logger.info(
+            print(
                 f"  {stock_code}: {trend.trend.value}  "
                 f"strength={trend.strength:.1f}  slope={trend.price_slope:+.2f}%"
             )
