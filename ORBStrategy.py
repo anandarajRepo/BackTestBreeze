@@ -35,7 +35,7 @@ from models.orb_models import BreakoutDirection, OpenRange, ORBTradeResult
 from services.momentum_service import MomentumScore, MomentumScoringService
 from services.orb_data_service import ORBDataService
 from services.trend_direction_service import TrendAnalysis, TrendDirectionService
-from strategy.orb_strategy import ORBStrategy
+from strategy.orb_strategy import ORBStrategy, run_premarket_trend_analysis
 
 load_dotenv()
 
@@ -341,86 +341,6 @@ def score_all_and_select_top(
 
     return top_structured
 
-
-# ── Phase 1b: Pre-market trend direction analysis ─────────────────────────────
-
-
-def run_premarket_trend_analysis(
-    trend_svc: TrendDirectionService,
-    top_stocks: list[tuple[str, str, MomentumScore]],
-    as_of_date: datetime,
-) -> dict[str, TrendAnalysis]:
-    """
-    Mirror FyersORB pre-market trend analysis:
-      • Analyze Nifty 50 as market-wide context.
-      • Analyze each selected stock's historical trend.
-      • Log a summary (UPTREND / DOWNTREND / SIDEWAYS counts) and per-stock details.
-
-    Returns a dict of stock_code → TrendAnalysis used later to gate orders.
-    """
-    logger.info("=" * 60)
-    logger.info("RUNNING PRE-MARKET TREND DIRECTION ANALYSIS")
-    logger.info("=" * 60)
-
-    # ── Nifty 50 ─────────────────────────────────────────────────────────────
-    nifty_trend: Optional[TrendAnalysis] = None
-    if ANALYZE_NIFTY50:
-        try:
-            nifty_trend = trend_svc.analyze_trend(
-                stock_code    = NIFTY50_STOCK_CODE,
-                exchange_code = NIFTY50_EXCHANGE,
-                as_of_date    = as_of_date,
-                lookback_days = TREND_LOOKBACK_DAYS,
-            )
-            logger.info(
-                f"Nifty 50 Trend: {nifty_trend.trend.value} "
-                f"(strength={nifty_trend.strength:.1f}, slope={nifty_trend.price_slope:+.2f}%)"
-            )
-        except Exception as exc:
-            logger.warning(f"Nifty 50 trend analysis failed: {exc}")
-
-    # ── Per-stock historical trend ────────────────────────────────────────────
-    hist_trends: dict[str, TrendAnalysis] = {}
-    for stock_code, exchange_code, _ in top_stocks:
-        try:
-            trend = trend_svc.analyze_trend(
-                stock_code    = stock_code,
-                exchange_code = exchange_code,
-                as_of_date    = as_of_date,
-                lookback_days = TREND_LOOKBACK_DAYS,
-            )
-            hist_trends[stock_code] = trend
-        except Exception as exc:
-            logger.warning(f"Trend analysis failed for {stock_code}: {exc}")
-
-    # ── Summary counts ────────────────────────────────────────────────────────
-    from services.trend_direction_service import TrendDirection
-    up_count   = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.UPTREND)
-    down_count = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.DOWNTREND)
-    side_count = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.SIDEWAYS)
-
-    logger.info(
-        f"Trend analysis complete: {up_count} UPTREND | {down_count} DOWNTREND | {side_count} SIDEWAYS"
-    )
-
-    # ── Nifty 50 detail line ──────────────────────────────────────────────────
-    if nifty_trend:
-        logger.info(
-            f"Nifty 50: {nifty_trend.trend.value} "
-            f"(strength={nifty_trend.strength:.1f}, slope={nifty_trend.price_slope:+.2f}%, "
-            f"EMA={nifty_trend.ema_signal.value})"
-        )
-
-    # ── Per-stock detail lines ────────────────────────────────────────────────
-    for stock_code, _, ms in top_stocks:
-        trend = hist_trends.get(stock_code)
-        if trend:
-            logger.info(
-                f"  {ms.symbol}: {trend.trend.value}  "
-                f"strength={trend.strength:.1f}  slope={trend.price_slope:+.2f}%"
-            )
-
-    return hist_trends
 
 
 # ── Phase 2 & 3: Per-day ORB scan across top stocks ──────────────────────────
@@ -742,9 +662,13 @@ if __name__ == "__main__" or True:
         hist_trends: Optional[dict] = None
         if trend_svc and ENABLE_TREND_FILTER:
             hist_trends = run_premarket_trend_analysis(
-                trend_svc  = trend_svc,
-                top_stocks = top_stocks,
-                as_of_date = as_of_date,
+                trend_svc         = trend_svc,
+                top_stocks        = top_stocks,
+                as_of_date        = as_of_date,
+                trend_lookback_days = TREND_LOOKBACK_DAYS,
+                analyze_nifty     = ANALYZE_NIFTY50,
+                nifty_stock_code  = NIFTY50_STOCK_CODE,
+                nifty_exchange    = NIFTY50_EXCHANGE,
             )
 
         # Phase 2 & 3: ORB scan with daily cap

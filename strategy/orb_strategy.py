@@ -20,6 +20,7 @@ Logic (mirrors FyersORB):
                • Hard SL / target as a final backstop.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -34,6 +35,8 @@ from services.trend_direction_service import (
     TrendDirection,
     TrendDirectionService,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -718,3 +721,83 @@ class ORBStrategy:
         print(f"{'='*80}\n")
 
         return results
+
+
+# ── Portfolio pre-market trend analysis ──────────────────────────────────────
+
+
+def run_premarket_trend_analysis(
+    trend_svc: TrendDirectionService,
+    top_stocks: list[tuple[str, str, MomentumScore]],
+    as_of_date: datetime,
+    trend_lookback_days: int = 10,
+    analyze_nifty: bool = True,
+    nifty_stock_code: str = "NIFTY",
+    nifty_exchange: str = "NSE",
+) -> dict[str, TrendAnalysis]:
+    """
+    Mirror FyersORB pre-market trend direction analysis:
+      • Optionally analyze Nifty 50 as market-wide context.
+      • Analyze each selected stock's historical trend.
+      • Log summary counts and per-stock details.
+
+    Returns stock_code → TrendAnalysis mapping used to gate orders.
+    """
+    logger.info("=" * 60)
+    logger.info("RUNNING PRE-MARKET TREND DIRECTION ANALYSIS")
+    logger.info("=" * 60)
+
+    # ── Nifty 50 ─────────────────────────────────────────────────────────────
+    nifty_trend: Optional[TrendAnalysis] = None
+    if analyze_nifty:
+        try:
+            nifty_trend = trend_svc.analyze_trend(
+                stock_code    = nifty_stock_code,
+                exchange_code = nifty_exchange,
+                as_of_date    = as_of_date,
+                lookback_days = trend_lookback_days,
+            )
+        except Exception as exc:
+            logger.warning(f"Nifty 50 trend analysis failed: {exc}")
+
+    # ── Per-stock historical trend ────────────────────────────────────────────
+    hist_trends: dict[str, TrendAnalysis] = {}
+    for stock_code, exchange_code, _ in top_stocks:
+        try:
+            trend = trend_svc.analyze_trend(
+                stock_code    = stock_code,
+                exchange_code = exchange_code,
+                as_of_date    = as_of_date,
+                lookback_days = trend_lookback_days,
+            )
+            hist_trends[stock_code] = trend
+        except Exception as exc:
+            logger.warning(f"Trend analysis failed for {stock_code}: {exc}")
+
+    # ── Summary counts ────────────────────────────────────────────────────────
+    up_count   = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.UPTREND)
+    down_count = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.DOWNTREND)
+    side_count = sum(1 for t in hist_trends.values() if t.trend == TrendDirection.SIDEWAYS)
+
+    logger.info(
+        f"Trend analysis complete: {up_count} UPTREND | {down_count} DOWNTREND | {side_count} SIDEWAYS"
+    )
+
+    # ── Nifty 50 detail line ──────────────────────────────────────────────────
+    if nifty_trend:
+        logger.info(
+            f"Nifty 50: {nifty_trend.trend.value} "
+            f"(strength={nifty_trend.strength:.1f}, slope={nifty_trend.price_slope:+.2f}%, "
+            f"EMA={nifty_trend.ema_signal.value})"
+        )
+
+    # ── Per-stock detail lines ────────────────────────────────────────────────
+    for stock_code, _, ms in top_stocks:
+        trend = hist_trends.get(stock_code)
+        if trend:
+            logger.info(
+                f"  {stock_code}: {trend.trend.value}  "
+                f"strength={trend.strength:.1f}  slope={trend.price_slope:+.2f}%"
+            )
+
+    return hist_trends
