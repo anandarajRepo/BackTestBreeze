@@ -32,11 +32,24 @@ class CommodityOptionService:
 
     # ── ATM helpers ───────────────────────────────────────────────────────────
 
-    def get_commodity_open(self, stock_code: str, trade_date: date) -> float:
-        """Return the first 1-minute candle open for a commodity on trade_date."""
+    def get_commodity_open(
+        self, stock_code: str, trade_date: date, expiry_date: date | None = None
+    ) -> float:
+        """Return the first 1-minute candle open for a commodity futures on trade_date.
+
+        expiry_date: the futures contract expiry; required by the Breeze API for MCX.
+        When omitted, defaults to the last Thursday of trade_date's month.
+        """
         exchange_code, _ = COMMODITY_CONFIG[stock_code]
         from_dt = datetime(trade_date.year, trade_date.month, trade_date.day, 9, 0, 0)
         to_dt   = datetime(trade_date.year, trade_date.month, trade_date.day, 9, 30, 0)
+
+        if expiry_date is None:
+            expiry_date = self.last_thursday(trade_date.year, trade_date.month)
+
+        expiry_str = datetime(
+            expiry_date.year, expiry_date.month, expiry_date.day, 6, 0, 0
+        ).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         resp = self.breeze.get_historical_data_v2(
             interval="1minute",
@@ -45,6 +58,7 @@ class CommodityOptionService:
             stock_code=stock_code,
             exchange_code=exchange_code,
             product_type="futures",
+            expiry_date=expiry_str,
         )
 
         candles = resp.get("Success") or []

@@ -314,7 +314,7 @@ class ADXCommodityStrategy:
                 # Use first trading day of the month to get opening price for ATM
                 try:
                     commodity_open = self.commodity_service.get_commodity_open(
-                        commodity, win_start
+                        commodity, win_start, expiry_date=expiry
                     )
                 except Exception as exc:
                     print(f"  [{expiry}][{commodity}] Could not get open for {win_start}: {exc}")
