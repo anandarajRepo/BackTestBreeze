@@ -42,8 +42,8 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE          = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE            = "05-May-2026"   # format: DD-Mon-YYYY
+START_DATE          = "01-Apr-2026"   # format: DD-Mon-YYYY
+END_DATE            = "11-May-2026"   # format: DD-Mon-YYYY
 
 CAPITAL             = 100000.0        # capital per contract (used for position sizing)
 
@@ -54,8 +54,8 @@ SLOW_EMA_PERIOD     = 50              # slow EMA  — used for entry signal
 
 # ATR settings
 ATR_PERIOD          = 14              # lookback period for ATR
-ATR_MULTIPLIER_TP   = 2.0             # take-profit = entry ± (ATR_MULTIPLIER_TP × ATR)
-ATR_MULTIPLIER_SL   = 1.0             # stop-loss   = entry ∓ (ATR_MULTIPLIER_SL × ATR)
+ATR_MULTIPLIER_TP   = 3.0             # take-profit = entry ± (ATR_MULTIPLIER_TP × ATR)
+ATR_MULTIPLIER_SL   = 3.0             # stop-loss   = entry ∓ (ATR_MULTIPLIER_SL × ATR)
 
 INTERVAL            = "1minute"       # candle interval: "1minute", "5minute", "30minute"
 
