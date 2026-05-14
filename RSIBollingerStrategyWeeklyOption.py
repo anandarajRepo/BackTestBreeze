@@ -71,7 +71,7 @@ INTERVAL       = "1minute"       # candle interval: "1minute", "5minute", "30min
 LONG_ONLY      = True            # default: only trade CE (long side)
 SHORT_ONLY     = False           # set True to trade only PE (short side)
 
-MINIMUM_ENTRY_PRICE = 0.0        # minimum option price to allow entry; 0 means no filter
+MINIMUM_ENTRY_PRICE = 30.0        # minimum option price to allow entry; 0 means no filter
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
