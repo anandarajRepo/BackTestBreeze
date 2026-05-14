@@ -141,22 +141,24 @@ class RSIBBOptionStrategy:
         start_date: str = "",
         end_date: str = "",
         interval: str = "1minute",
+        minimum_entry_price: float = 0.0,
     ):
         if long_only and short_only:
             raise ValueError("long_only and short_only cannot both be True.")
 
-        self.nifty_service  = nifty_service
-        self.capital        = capital
-        self.rsi_period     = rsi_period
-        self.rsi_oversold   = rsi_oversold
-        self.rsi_overbought = rsi_overbought
-        self.bb_period      = bb_period
-        self.bb_std_dev     = bb_std_dev
-        self.long_only      = long_only
-        self.short_only     = short_only
-        self.start_date     = datetime.strptime(start_date, "%d-%b-%Y").date()
-        self.end_date       = datetime.strptime(end_date,   "%d-%b-%Y").date()
-        self.interval       = interval
+        self.nifty_service       = nifty_service
+        self.capital             = capital
+        self.rsi_period          = rsi_period
+        self.rsi_oversold        = rsi_oversold
+        self.rsi_overbought      = rsi_overbought
+        self.bb_period           = bb_period
+        self.bb_std_dev          = bb_std_dev
+        self.long_only           = long_only
+        self.short_only          = short_only
+        self.start_date          = datetime.strptime(start_date, "%d-%b-%Y").date()
+        self.end_date            = datetime.strptime(end_date,   "%d-%b-%Y").date()
+        self.interval            = interval
+        self.minimum_entry_price = minimum_entry_price
 
     @property
     def _active_option_types(self) -> list[str]:
@@ -273,7 +275,7 @@ class RSIBBOptionStrategy:
                     # Both RSI and price confirm overbought: price above upper BB and RSI above overbought
                     signal = (price > upper) and (rsi > self.rsi_overbought)
 
-                if signal:
+                if signal and price > self.minimum_entry_price:
                     entry_price = price
                     shares      = max(floor(self.capital / entry_price), 1)
                     in_position = True
@@ -334,6 +336,8 @@ class RSIBBOptionStrategy:
         print(f"  RSI period: {self.rsi_period}  |  Oversold: {self.rsi_oversold}"
               f"  |  Overbought: {self.rsi_overbought}")
         print(f"  BB period : {self.bb_period}  |  Std dev: {self.bb_std_dev}")
+        if self.minimum_entry_price > 0:
+            print(f"  Min entry price: ₹{self.minimum_entry_price:,.2f}")
         print(f"  Expiries found: {len(wednesdays)}")
         print(f"{'='*75}\n")
 
