@@ -47,7 +47,7 @@ SYMBOLS = [
     # City Gas / LNG Distribution
     "NSE:IGL-EQ",
     "NSE:MGL-EQ",
-    "NSE:GUJGASLTD-EQ",
+    "NSE:GUJGAS-EQ",
     "NSE:PETRONET-EQ",
 
     # Defence
@@ -94,12 +94,12 @@ SYMBOLS = [
     "NSE:EICHERMOT-EQ",
     "NSE:TVSMOTOR-EQ",
 
-    # IPO Stocks
-    "NSE:VIKRAMSOLR-EQ",
-    "NSE:ATLANTAELE-EQ",
-    "NSE:SOLARWORLD-EQ",
-    "NSE:RUBICON-EQ",
-    "NSE:MIDWESTLTD-EQ",
+    # IPO / SME Stocks (verify availability on ICICI Breeze before enabling)
+    # "NSE:VIKRAMSOLR-EQ",   # SME segment — may not be in ICICI universe
+    # "NSE:ATLANTAELE-EQ",   # SME segment — may not be in ICICI universe
+    # "NSE:SOLARWORLD-EQ",   # SME segment — may not be in ICICI universe
+    # "NSE:RUBICON-EQ",      # SME segment — may not be in ICICI universe
+    # "NSE:MIDWESTLTD-EQ",   # SME segment — may not be in ICICI universe
 
     # Jewellery
     "NSE:TITAN-EQ",
@@ -108,14 +108,14 @@ SYMBOLS = [
     "NSE:PNGBL-EQ",
     "NSE:THANGAMAYL-EQ",
     "NSE:SENCO-EQ",
-    "NSE:RJIL-EQ",
+    # "NSE:RJIL-EQ",         # Not a standard NSE equity listing — remove if no data
     "NSE:SKYGOLD-EQ",
     "NSE:GOLDIAM-EQ",
-    "NSE:DIVHJL-EQ",
+    # "NSE:DIVHJL-EQ",       # SME segment — may not be in ICICI universe
     "NSE:ZODIACJL-EQ",
-    "NSE:NARBADAG-EQ",
-    "NSE:MOKSH-EQ",
-    "NSE:SWARN-EQ",
+    # "NSE:NARBADAG-EQ",     # SME segment — may not be in ICICI universe
+    # "NSE:MOKSH-EQ",        # SME segment — may not be in ICICI universe
+    # "NSE:SWARN-EQ",        # SME segment — may not be in ICICI universe
 
     # Favourite Stocks
     "NSE:STLTECH-EQ",
@@ -157,10 +157,17 @@ class SymbolSummary:
     error: str = ""
 
 
+# Maps NSE symbol codes to ICICI Breeze stock_code where they differ.
+ICICI_SYMBOL_CORRECTIONS: dict[str, str] = {
+    "GUJGASLTD": "GUJGAS",       # Gujarat Gas NSE symbol is GUJGAS
+}
+
+
 def parse_symbol(symbol: str) -> tuple[str, str]:
-    """Parse 'NSE:ONGC-EQ' → ('ONGC', 'NSE')."""
+    """Parse 'NSE:ONGC-EQ' → ('ONGC', 'NSE'), applying ICICI corrections."""
     exchange, rest = symbol.split(":", 1)
     stock_code = rest.removesuffix("-EQ")
+    stock_code = ICICI_SYMBOL_CORRECTIONS.get(stock_code, stock_code)
     return stock_code, exchange
 
 
