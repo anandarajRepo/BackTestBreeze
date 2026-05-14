@@ -26,6 +26,9 @@ Mode:
 
 Note: LONG_ONLY and SHORT_ONLY cannot both be True.
 
+MINIMUM_ENTRY_PRICE: set to a positive value (e.g. 30) to skip entries where
+  the option price is at or below that threshold. Default 0 disables the filter.
+
 Usage:
   Set START_DATE / END_DATE to the desired backtest window (DD-Mon-YYYY).
   Each Wednesday in that range is treated as a weekly expiry.
@@ -68,6 +71,8 @@ INTERVAL       = "1minute"       # candle interval: "1minute", "5minute", "30min
 LONG_ONLY      = True            # default: only trade CE (long side)
 SHORT_ONLY     = False           # set True to trade only PE (short side)
 
+MINIMUM_ENTRY_PRICE = 0.0        # minimum option price to allow entry; 0 means no filter
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -86,6 +91,7 @@ if __name__ == "__main__":
         start_date=START_DATE,
         end_date=END_DATE,
         interval=INTERVAL,
+        minimum_entry_price=MINIMUM_ENTRY_PRICE,
     )
 
     expiry_results = strategy.run_weekly_backtest()
