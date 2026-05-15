@@ -16,21 +16,20 @@ Exit:
   - No new entries before 09:00 or after 22:45
   - Max 5 trades per day per symbol
 
-Expiry calendar:
-  MCX monthly WeeklyOptions expire on the last Thursday of each calendar month.
-  The trade window for each expiry spans the 1st of that month through expiry day.
+GOLD contract structure (MCX):
+  Futures expiry : 5th of every month
+  Option expiry  : 27th of every month
+  ATM strike     : recomputed every trading day from the active futures price
+                   (rounded to nearest ₹100 interval)
+  Trade window   : 28th of previous month → 27th of current month
 
-ATM strike:
-  Computed from the commodity's opening price on the first day of each
-  expiry month, rounded to the commodity-specific strike interval:
-    Gold        → ₹100
-    Silver      → ₹500
-    Crude Oil   → ₹50
-    Natural Gas → ₹10
+Other commodities still use the last-Thursday expiry calendar with a
+fixed ATM derived from the first day of the expiry month.
 
 Usage:
   Set START_DATE / END_DATE to the desired backtest window (DD-Mon-YYYY).
   Add or remove symbols from COMMODITIES as needed.
+  Set GOLD_DAILY_ATM = True (default) to use the new daily-ATM logic for GOLD.
 """
 
 import os
@@ -64,6 +63,10 @@ ADX_PERIOD    = 16              # lookback period for ADX / DI calculation
 ADX_THRESHOLD = 25.0            # minimum ADX value required to enter a trade
 INTERVAL      = "1minute"       # candle interval for option data
 
+# When True and COMMODITIES contains "GOLD", use the daily-ATM logic:
+#   futures expire 5th, options expire 27th, ATM recomputed each trading day.
+GOLD_DAILY_ATM = True
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -80,5 +83,11 @@ if __name__ == "__main__":
         interval=INTERVAL,
     )
 
-    expiry_results = strategy.run_monthly_backtest()
+    if GOLD_DAILY_ATM and "GOLD" in COMMODITIES:
+        # GOLD: daily ATM from active futures, options expire 27th
+        expiry_results = strategy.run_gold_daily_atm_backtest()
+    else:
+        # Other commodities: fixed monthly ATM, last-Thursday expiry
+        expiry_results = strategy.run_monthly_backtest()
+
     ADXCommodityStrategy.print_report(expiry_results)

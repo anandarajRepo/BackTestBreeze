@@ -289,6 +289,132 @@ class ADXCommodityStrategy:
 
         return trades
 
+    # ── GOLD daily-ATM backtest ───────────────────────────────────────────────
+
+    def run_gold_daily_atm_backtest(self) -> list[MonthlyExpiryResult]:
+        """
+        GOLD-specific backtest where the ATM strike is recomputed every trading day
+        using the active futures contract price (futures expire 5th, options 27th).
+
+        For each option-expiry window (28th prev month → 27th current month):
+          • Iterate over each calendar day in the window.
+          • Fetch the GOLD futures open price → derive daily ATM strike.
+          • Fetch that day's 1-min option candles for the daily ATM CE and PE.
+          • Run ADX strategy on each day's candle set independently.
+          • Aggregate all daily trades under one MonthlyExpiryResult.
+        """
+        from services.commodity_option_service import CommodityOptionService
+
+        expiry_results: list[MonthlyExpiryResult] = []
+
+        option_expiries = CommodityOptionService.gold_option_expiries(
+            self.start_date, self.end_date
+        )
+
+        print(f"\n{'='*80}")
+        print(f"  GOLD ADX STRATEGY — DAILY ATM | FUTURES EXP 5th | OPTIONS EXP 27th")
+        print(f"  Period     : {self.start_date}  →  {self.end_date}")
+        print(f"  Capital    : ₹{self.capital:,.0f}  |  ADX period: {self.adx_period}"
+              f"  |  ADX threshold: {self.adx_threshold}")
+        print(f"  Option expiries found: {len(option_expiries)}")
+        print(f"{'='*80}\n")
+
+        for option_expiry in option_expiries:
+            win_start, win_end = CommodityOptionService.gold_option_window(option_expiry)
+
+            # Clamp window to the user's requested date range
+            win_start = max(win_start, self.start_date)
+            win_end   = min(win_end,   self.end_date)
+            if win_start > win_end:
+                continue
+
+            print(f"  Option expiry {option_expiry}  |  Window {win_start} → {win_end}")
+
+            month_result = MonthlyExpiryResult(
+                expiry_date=option_expiry,
+                commodity="GOLD",
+                atm_strike=0,        # will be set from first valid day
+                commodity_open=0.0,
+            )
+
+            ce_all: list[CommodityTradeResult] = []
+            pe_all: list[CommodityTradeResult] = []
+
+            trade_date = win_start
+            while trade_date <= win_end:
+                # Skip weekends; MCX trades Mon–Sat but not Sun
+                if trade_date.weekday() == 6:  # Sunday
+                    trade_date += timedelta(days=1)
+                    continue
+
+                # ── Get daily futures price and ATM strike ────────────────
+                try:
+                    futures_price, daily_strike = (
+                        self.commodity_service.get_gold_daily_atm(trade_date)
+                    )
+                except Exception as exc:
+                    print(f"    [{trade_date}] futures price unavailable: {exc}")
+                    trade_date += timedelta(days=1)
+                    continue
+
+                month_result.daily_atm[trade_date] = (futures_price, daily_strike)
+
+                # Use first valid day as the reference ATM for reporting
+                if month_result.atm_strike == 0:
+                    month_result.atm_strike    = daily_strike
+                    month_result.commodity_open = futures_price
+
+                print(
+                    f"    {trade_date}  futures {futures_price:.2f}"
+                    f"  →  daily ATM {daily_strike}"
+                )
+
+                # Day candle bounds
+                day_start = datetime(trade_date.year, trade_date.month, trade_date.day, 9, 0, 0)
+                day_end   = datetime(trade_date.year, trade_date.month, trade_date.day, 23, 30, 0)
+
+                for opt_type in ("CE", "PE"):
+                    try:
+                        candles = self.commodity_service.get_option_candles(
+                            stock_code="GOLD",
+                            strike=daily_strike,
+                            expiry_date=option_expiry,
+                            option_type=opt_type,
+                            start=day_start,
+                            end=day_end,
+                            interval=self.interval,
+                        )
+                        day_trades = self._run_symbol(
+                            candles, "GOLD", opt_type, daily_strike, option_expiry
+                        )
+                        # Tag each trade with the futures price used for ATM selection
+                        for t in day_trades:
+                            t.futures_price = futures_price
+
+                        if opt_type == "CE":
+                            ce_all.extend(day_trades)
+                        else:
+                            pe_all.extend(day_trades)
+
+                        if day_trades:
+                            print(f"      {opt_type} strike {daily_strike}: {len(day_trades)} trades")
+                    except Exception as exc:
+                        print(f"      [{opt_type}] {trade_date} error: {exc}")
+
+                trade_date += timedelta(days=1)
+
+            month_result.ce_trades = ce_all
+            month_result.pe_trades = pe_all
+            expiry_results.append(month_result)
+
+            total_pnl = sum(t.pnl for t in month_result.all_trades)
+            print(
+                f"  → Expiry {option_expiry}: {len(month_result.all_trades)} trades"
+                f"  PnL ₹{total_pnl:+.2f}\n"
+            )
+
+        return expiry_results
+
     # ── Monthly expiry orchestration ──────────────────────────────────────────
 
     def run_monthly_backtest(self) -> list[MonthlyExpiryResult]:
@@ -385,40 +511,76 @@ class ADXCommodityStrategy:
         for er in expiry_results:
             if not er.all_trades:
                 continue
-            total_pnl = sum(t.pnl for t in er.all_trades)
-            sign      = "+" if total_pnl >= 0 else ""
+            total_pnl    = sum(t.pnl for t in er.all_trades)
+            sign         = "+" if total_pnl >= 0 else ""
+            has_daily_atm = bool(er.daily_atm)
+
             print(
                 f"\n  Expiry {er.expiry_date}  |  {er.commodity:<12}"
-                f"  ATM {er.atm_strike}  |  Open {er.commodity_open:.2f}"
+                f"  Ref-ATM {er.atm_strike}  |  Ref-Open {er.commodity_open:.2f}"
                 f"  |  Trades {len(er.all_trades)}"
                 f"  |  PnL {sign}{total_pnl:.2f}"
             )
+
+            if has_daily_atm:
+                print(f"  Daily ATM used (futures price → strike):")
+                for d, (fp, sk) in sorted(er.daily_atm.items()):
+                    print(f"    {d}  futures {fp:.2f}  →  ATM {sk}")
+
+            sep_w = 108 if has_daily_atm else 95
+            sep   = "─" * sep_w
             print(f"  {sep}")
 
-            header = (
-                f"  {'Symbol':<22} {'Entry':>19} {'Exit':>19}"
-                f" {'Entry₹':>8} {'Exit₹':>8} {'Qty':>5}"
-                f" {'PnL':>10} {'Reason':<14}"
-                f" {'ADX':>6} {'DI+':>6} {'DI-':>6}"
-            )
+            if has_daily_atm:
+                header = (
+                    f"  {'Symbol':<22} {'Entry':>19} {'Exit':>19}"
+                    f" {'Fut₹':>8} {'Strike':>7}"
+                    f" {'Entry₹':>8} {'Exit₹':>8} {'Qty':>5}"
+                    f" {'PnL':>10} {'Reason':<14}"
+                    f" {'ADX':>6} {'DI+':>6} {'DI-':>6}"
+                )
+            else:
+                header = (
+                    f"  {'Symbol':<22} {'Entry':>19} {'Exit':>19}"
+                    f" {'Entry₹':>8} {'Exit₹':>8} {'Qty':>5}"
+                    f" {'PnL':>10} {'Reason':<14}"
+                    f" {'ADX':>6} {'DI+':>6} {'DI-':>6}"
+                )
             print(header)
             print(f"  {sep}")
 
             for t in sorted(er.all_trades, key=lambda x: x.entry_time):
                 pnl_sign = "+" if t.pnl >= 0 else ""
-                print(
-                    f"  {t.symbol:<22}"
-                    f" {t.entry_time.strftime('%d-%b %H:%M'):>19}"
-                    f" {t.exit_time.strftime('%d-%b %H:%M'):>19}"
-                    f" {t.entry_price:>8.2f}"
-                    f" {t.exit_price:>8.2f}"
-                    f" {t.shares:>5}"
-                    f" {pnl_sign+f'{t.pnl:.2f}':>10}"
-                    f" {t.exit_reason:<14}"
-                    f" {t.adx_at_exit:>6.2f}"
-                    f" {t.di_plus_at_exit:>6.2f}"
-                    f" {t.di_minus_at_exit:>6.2f}"
-                )
+                if has_daily_atm:
+                    print(
+                        f"  {t.symbol:<22}"
+                        f" {t.entry_time.strftime('%d-%b %H:%M'):>19}"
+                        f" {t.exit_time.strftime('%d-%b %H:%M'):>19}"
+                        f" {t.futures_price:>8.2f}"
+                        f" {t.strike:>7}"
+                        f" {t.entry_price:>8.2f}"
+                        f" {t.exit_price:>8.2f}"
+                        f" {t.shares:>5}"
+                        f" {pnl_sign+f'{t.pnl:.2f}':>10}"
+                        f" {t.exit_reason:<14}"
+                        f" {t.adx_at_exit:>6.2f}"
+                        f" {t.di_plus_at_exit:>6.2f}"
+                        f" {t.di_minus_at_exit:>6.2f}"
+                    )
+                else:
+                    print(
+                        f"  {t.symbol:<22}"
+                        f" {t.entry_time.strftime('%d-%b %H:%M'):>19}"
+                        f" {t.exit_time.strftime('%d-%b %H:%M'):>19}"
+                        f" {t.entry_price:>8.2f}"
+                        f" {t.exit_price:>8.2f}"
+                        f" {t.shares:>5}"
+                        f" {pnl_sign+f'{t.pnl:.2f}':>10}"
+                        f" {t.exit_reason:<14}"
+                        f" {t.adx_at_exit:>6.2f}"
+                        f" {t.di_plus_at_exit:>6.2f}"
+                        f" {t.di_minus_at_exit:>6.2f}"
+                    )
 
         # ── Per-symbol metrics ────────────────────────────────────────────
         print(f"\n{'='*95}")
