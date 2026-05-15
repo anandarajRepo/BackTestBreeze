@@ -57,7 +57,7 @@ print("Session Generated Successfully\n")
 START_DATE    = "01-Jan-2026"   # format: DD-Mon-YYYY
 END_DATE      = "30-Apr-2026"   # format: DD-Mon-YYYY
 
-COMMODITIES   = ["GOLD", "SILVER", "CRUDEOIL", "NATURALGAS"]
+COMMODITIES   = ["GOLD"]
 
 CAPITAL       = 100_000.0       # capital per contract (used for position sizing)
 ADX_PERIOD    = 16              # lookback period for ADX / DI calculation
