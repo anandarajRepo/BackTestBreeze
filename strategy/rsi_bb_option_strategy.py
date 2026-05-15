@@ -1,5 +1,5 @@
 """
-RSI + Bollinger Bands combined strategy for Nifty weekly options.
+RSI + Bollinger Bands combined strategy for Nifty weekly WeeklyOptions.
 
 Entry rules
 -----------

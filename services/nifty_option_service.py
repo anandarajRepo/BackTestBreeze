@@ -67,7 +67,7 @@ class NiftyOptionService:
             to_date=end,
             stock_code="NIFTY",
             exchange_code="NFO",
-            product_type="options",
+            product_type="WeeklyOptions",
             expiry_date=expiry_str,
             right=right,
             strike_price=str(strike),

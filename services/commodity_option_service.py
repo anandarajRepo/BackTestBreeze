@@ -101,7 +101,7 @@ class CommodityOptionService:
             to_date=end,
             stock_code=stock_code,
             exchange_code=exchange_code,
-            product_type="options",
+            product_type="WeeklyOptions",
             expiry_date=expiry_str,
             right=right,
             strike_price=str(strike),

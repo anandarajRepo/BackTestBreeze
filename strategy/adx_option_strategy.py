@@ -1,5 +1,5 @@
 """
-ADX DI+/DI- crossover strategy for Nifty weekly options.
+ADX DI+/DI- crossover strategy for Nifty weekly WeeklyOptions.
 
 Entry rules:
   CE — buy when DI+ crosses above DI- and ADX >= threshold

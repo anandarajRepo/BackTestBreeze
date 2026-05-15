@@ -1,5 +1,5 @@
 """
-HTF Candle Direction Strategy for Nifty weekly options.
+HTF Candle Direction Strategy for Nifty weekly WeeklyOptions.
 
 Core idea:
   Determine directional bias from a Higher Timeframe (HTF) candle:

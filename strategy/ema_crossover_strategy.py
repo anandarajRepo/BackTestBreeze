@@ -1,5 +1,5 @@
 """
-EMA Crossover strategy for Nifty weekly options (5-minute candles).
+EMA Crossover strategy for Nifty weekly WeeklyOptions (5-minute candles).
 
 Entry rules:
   CE — buy when fast EMA crosses above slow EMA (bullish crossover)

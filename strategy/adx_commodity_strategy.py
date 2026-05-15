@@ -1,5 +1,5 @@
 """
-ADX DI+/DI- crossover strategy for MCX commodity monthly options.
+ADX DI+/DI- crossover strategy for MCX commodity monthly WeeklyOptions.
 
 Entry rules:
   CE — buy when DI+ crosses above DI- and ADX >= threshold

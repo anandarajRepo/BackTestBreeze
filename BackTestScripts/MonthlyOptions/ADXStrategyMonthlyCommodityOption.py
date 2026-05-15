@@ -17,7 +17,7 @@ Exit:
   - Max 5 trades per day per symbol
 
 Expiry calendar:
-  MCX monthly options expire on the last Thursday of each calendar month.
+  MCX monthly WeeklyOptions expire on the last Thursday of each calendar month.
   The trade window for each expiry spans the 1st of that month through expiry day.
 
 ATM strike:

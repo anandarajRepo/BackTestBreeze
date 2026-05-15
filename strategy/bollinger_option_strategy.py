@@ -1,5 +1,5 @@
 """
-Bollinger Band mean-reversion strategy for Nifty weekly options.
+Bollinger Band mean-reversion strategy for Nifty weekly WeeklyOptions.
 
 Entry rules:
   CE — buy when close crosses above the lower band (oversold bounce)

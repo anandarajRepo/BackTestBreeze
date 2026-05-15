@@ -1,5 +1,5 @@
 """
-RSI Convergence & Divergence strategy for Nifty weekly options.
+RSI Convergence & Divergence strategy for Nifty weekly WeeklyOptions.
 
 Signal types
 ------------

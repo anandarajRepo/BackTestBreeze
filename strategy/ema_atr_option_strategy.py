@@ -1,5 +1,5 @@
 """
-3-EMA + ATR Strategy for Nifty weekly options.
+3-EMA + ATR Strategy for Nifty weekly WeeklyOptions.
 
 Entry rules:
   CE — buy when Middle EMA crosses above Slow EMA (bullish momentum)
