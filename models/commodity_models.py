@@ -23,16 +23,19 @@ class CommodityTradeResult:
     di_plus_at_exit: float
     di_minus_at_exit: float
     duration_minutes: int
+    futures_price: float = 0.0   # GOLD futures price used to derive daily ATM
 
 
 @dataclass
 class MonthlyExpiryResult:
     expiry_date: date
     commodity: str
-    atm_strike: int
-    commodity_open: float
+    atm_strike: int           # initial / reference ATM (first day of window)
+    commodity_open: float     # futures price used for the reference ATM
     ce_trades: list[CommodityTradeResult] = field(default_factory=list)
     pe_trades: list[CommodityTradeResult] = field(default_factory=list)
+    # daily ATM map: trade_date → (futures_price, atm_strike)
+    daily_atm: dict[date, tuple[float, int]] = field(default_factory=dict)
 
     @property
     def all_trades(self) -> list[CommodityTradeResult]:

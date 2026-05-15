@@ -9,6 +9,11 @@ Supported commodities and their MCX stock codes / strike intervals:
   Natural Gas → NATURALGAS  (₹10  strike interval)
 
 Monthly expiry on MCX falls on the last Thursday of each month.
+
+GOLD-specific contract structure:
+  Futures expiry : 5th of every month
+  Option expiry  : 27th of every month
+  ATM strike     : computed daily from the active futures contract price
 """
 
 from calendar import monthrange
@@ -24,6 +29,10 @@ COMMODITY_CONFIG: dict[str, tuple[str, int]] = {
     "CRUDEOIL":    ("MCX", 50),
     "NATURALGAS":  ("MCX", 10),
 }
+
+# GOLD MCX contract expiry days
+GOLD_FUTURES_EXPIRY_DAY: int = 5   # futures expire on the 5th of each month
+GOLD_OPTION_EXPIRY_DAY:  int = 27  # options  expire on the 27th of each month
 
 
 class CommodityOptionService:
@@ -150,3 +159,83 @@ class CommodityOptionService:
         """
         month_start = date(expiry.year, expiry.month, 1)
         return month_start, expiry
+
+    # ── GOLD-specific contract helpers ────────────────────────────────────────
+
+    @staticmethod
+    def gold_futures_expiry(trade_date: date) -> date:
+        """
+        Return the active GOLD futures expiry (5th of month) for trade_date.
+        If trade_date is after the 5th, rolls to the next month's 5th.
+        """
+        candidate = date(trade_date.year, trade_date.month, GOLD_FUTURES_EXPIRY_DAY)
+        if trade_date > candidate:
+            if trade_date.month == 12:
+                candidate = date(trade_date.year + 1, 1, GOLD_FUTURES_EXPIRY_DAY)
+            else:
+                candidate = date(trade_date.year, trade_date.month + 1, GOLD_FUTURES_EXPIRY_DAY)
+        return candidate
+
+    @staticmethod
+    def gold_option_expiry(trade_date: date) -> date:
+        """
+        Return the active GOLD option expiry (27th of month) for trade_date.
+        If trade_date is after the 27th, rolls to the next month's 27th.
+        """
+        candidate = date(trade_date.year, trade_date.month, GOLD_OPTION_EXPIRY_DAY)
+        if trade_date > candidate:
+            if trade_date.month == 12:
+                candidate = date(trade_date.year + 1, 1, GOLD_OPTION_EXPIRY_DAY)
+            else:
+                candidate = date(trade_date.year, trade_date.month + 1, GOLD_OPTION_EXPIRY_DAY)
+        return candidate
+
+    @classmethod
+    def gold_option_expiries(cls, start: date, end: date) -> list[date]:
+        """
+        Return all GOLD option expiries (27th of each month) between start and end inclusive.
+        """
+        expiries: list[date] = []
+        year, month = start.year, start.month
+        while True:
+            expiry = date(year, month, GOLD_OPTION_EXPIRY_DAY)
+            if expiry > end:
+                break
+            if expiry >= start:
+                expiries.append(expiry)
+            if month == 12:
+                year += 1
+                month = 1
+            else:
+                month += 1
+        return expiries
+
+    @classmethod
+    def gold_option_window(cls, option_expiry: date) -> tuple[date, date]:
+        """
+        Trading window for a GOLD option expiry:
+        from the 28th of the previous month through the 27th (option_expiry).
+        """
+        if option_expiry.month == 1:
+            win_start = date(option_expiry.year - 1, 12, 28)
+        else:
+            win_start = date(option_expiry.year, option_expiry.month - 1, 28)
+        return win_start, option_expiry
+
+    def get_gold_futures_price(self, trade_date: date) -> float:
+        """
+        Return the opening GOLD futures price on trade_date using the active
+        futures contract (expiry = 5th of the appropriate month).
+        """
+        futures_expiry = self.gold_futures_expiry(trade_date)
+        return self.get_commodity_open("GOLD", trade_date, expiry_date=futures_expiry)
+
+    def get_gold_daily_atm(self, trade_date: date) -> tuple[float, int]:
+        """
+        Fetch GOLD futures price for trade_date and return (futures_price, atm_strike).
+        ATM is rounded to the nearest ₹100 interval.
+        """
+        _, strike_interval = COMMODITY_CONFIG["GOLD"]
+        price = self.get_gold_futures_price(trade_date)
+        strike = self.atm_strike(price, strike_interval)
+        return price, strike
