@@ -166,20 +166,31 @@ class CommodityOptionService:
     # ── GOLD-specific contract helpers ────────────────────────────────────────
 
     @staticmethod
+    @staticmethod
+    def _adjusted_futures_expiry(year: int, month: int) -> date:
+        """
+        Return the MCX GOLD futures expiry date for the given contract month.
+        Nominal expiry is the 5th; if it falls on a Saturday or Sunday, shift
+        back to the preceding Friday so the Breeze API can locate the contract.
+        """
+        d = date(year, month, GOLD_FUTURES_EXPIRY_DAY)
+        if d.weekday() == 5:   # Saturday → Friday
+            d -= timedelta(days=1)
+        elif d.weekday() == 6:  # Sunday → Friday
+            d -= timedelta(days=2)
+        return d
+
+    @staticmethod
     def gold_futures_expiry(trade_date: date) -> date:
         """
-        Return the active GOLD futures expiry (5th of the contract month) for trade_date.
+        Return the active GOLD futures expiry for trade_date.
         MCX GOLD futures only exist for even months: Feb, Apr, Jun, Aug, Oct, Dec.
-
-        The Breeze API identifies contracts by their nominal expiry (the 5th), regardless
-        of whether the actual last-trading day was moved due to a weekend or holiday.
-        We therefore use the raw 5th as the contract identifier and let the API handle
-        its own holiday calendar.
+        The nominal expiry is the 5th; weekends are shifted to the preceding Friday.
         """
         year, month = trade_date.year, trade_date.month
         for _ in range(13):
             if month in GOLD_FUTURES_CONTRACT_MONTHS:
-                candidate = date(year, month, GOLD_FUTURES_EXPIRY_DAY)
+                candidate = CommodityOptionService._adjusted_futures_expiry(year, month)
                 if candidate >= trade_date:
                     return candidate
             month += 1
