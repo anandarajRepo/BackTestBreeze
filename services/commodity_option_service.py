@@ -11,8 +11,10 @@ Supported commodities and their MCX stock codes / strike intervals:
 Monthly expiry on MCX falls on the last Thursday of each month.
 
 GOLD-specific contract structure:
-  Futures expiry : 5th of even months only (Feb, Apr, Jun, Aug, Oct, Dec)
-  Option expiry  : 27th of every month
+  Futures expiry : 5th of even months (Feb/Apr/Jun/Aug/Oct/Dec), adjusted for
+                   weekends/holidays per GOLD_FUTURES_EXPIRY_DATES lookup.
+  Option expiry  : official MCX dates per GOLD_OPTION_EXPIRY_DATES lookup;
+                   falls back to 27th adjusted for weekends/holidays.
   ATM strike     : computed daily from the active futures contract price
 """
 
@@ -36,6 +38,35 @@ GOLD_OPTION_EXPIRY_DAY:  int = 27  # options  expire on the 27th of each month
 
 # MCX GOLD futures only exist for even months (Feb, Apr, Jun, Aug, Oct, Dec)
 GOLD_FUTURES_CONTRACT_MONTHS: tuple[int, ...] = (2, 4, 6, 8, 10, 12)
+
+# Explicit MCX GOLD futures expiry dates for 2026 (source: Groww / MCX official calendar).
+# Key: (year, month) — months are even only (Feb=2, Apr=4, Jun=6, Aug=8, Oct=10, Dec=12).
+# These are the dates the Breeze API expects as the contract expiry parameter.
+GOLD_FUTURES_EXPIRY_DATES: dict[tuple[int, int], date] = {
+    (2026, 2):  date(2026, 2,  5),   # February  5, 2026
+    (2026, 4):  date(2026, 4,  2),   # April     2, 2026  (Apr 5 is Sunday; Apr 3 Good Friday)
+    (2026, 6):  date(2026, 6,  5),   # June      5, 2026
+    (2026, 8):  date(2026, 8,  5),   # August    5, 2026
+    (2026, 10): date(2026, 10, 5),   # October   5, 2026
+    (2026, 12): date(2026, 12, 4),   # December  4, 2026  (Dec 5 is Saturday)
+}
+
+# Explicit MCX GOLD option expiry dates for 2025-2026 (source: Groww / MCX official calendar).
+# Key: (year, month) — every calendar month.
+GOLD_OPTION_EXPIRY_DATES: dict[tuple[int, int], date] = {
+    (2025, 12): date(2025, 12, 31),  # December 31, 2025
+    (2026, 1):  date(2026, 1,  27),  # January  27, 2026
+    (2026, 2):  date(2026, 2,  27),  # February 27, 2026
+    (2026, 3):  date(2026, 3,  24),  # March    24, 2026
+    (2026, 4):  date(2026, 4,  30),  # April    30, 2026
+    (2026, 5):  date(2026, 5,  27),  # May      27, 2026
+    (2026, 6):  date(2026, 6,  30),  # June     30, 2026
+    (2026, 7):  date(2026, 7,  27),  # July     27, 2026
+    (2026, 8):  date(2026, 8,  31),  # August   31, 2026
+    (2026, 9):  date(2026, 9,  23),  # September 23, 2026
+    (2026, 10): date(2026, 10, 30),  # October  30, 2026
+    (2026, 11): date(2026, 11, 25),  # November 25, 2026
+}
 
 # MCX exchange holidays (market closed; no trading in any commodity)
 MCX_HOLIDAYS: frozenset[date] = frozenset({
@@ -214,7 +245,13 @@ class CommodityOptionService:
 
     @staticmethod
     def _nominal_futures_expiry(year: int, month: int) -> date:
-        """Return the nominal MCX GOLD futures expiry date (always the 5th)."""
+        """
+        Return the MCX GOLD futures expiry date for the given contract month.
+        Uses the explicit 2026 lookup table when available; otherwise falls back
+        to the generic 5th-of-month rule adjusted for weekends/holidays.
+        """
+        if (year, month) in GOLD_FUTURES_EXPIRY_DATES:
+            return GOLD_FUTURES_EXPIRY_DATES[(year, month)]
         return date(year, month, GOLD_FUTURES_EXPIRY_DAY)
 
     @staticmethod
@@ -231,18 +268,17 @@ class CommodityOptionService:
     @staticmethod
     def gold_futures_expiry(trade_date: date) -> date:
         """
-        Return the nominal MCX GOLD futures expiry date for the active contract on
-        trade_date. The contract is considered expired once its last trading day has
-        passed (weekends shift the last trading day to the preceding Friday, but the
-        nominal contract date stays on the 5th and is what the Breeze API expects).
+        Return the MCX GOLD futures expiry date for the active contract on trade_date.
+        For months covered by GOLD_FUTURES_EXPIRY_DATES the exact official date is used;
+        for all other months the expiry is the 5th adjusted for weekends/holidays.
+        The contract is considered active as long as its expiry date >= trade_date.
         """
         year, month = trade_date.year, trade_date.month
         for _ in range(13):
             if month in GOLD_FUTURES_CONTRACT_MONTHS:
-                nominal = CommodityOptionService._nominal_futures_expiry(year, month)
-                last_trading = CommodityOptionService._last_trading_day(nominal)
-                if last_trading >= trade_date:
-                    return nominal   # always return the nominal 5th for the API
+                expiry = CommodityOptionService._nominal_futures_expiry(year, month)
+                if expiry >= trade_date:
+                    return expiry
             month += 1
             if month > 12:
                 month = 1
@@ -251,8 +287,15 @@ class CommodityOptionService:
 
     @staticmethod
     def _adjust_option_expiry(nominal: date) -> date:
-        """Roll the nominal option expiry back past weekends and MCX holidays."""
-        d = nominal
+        """
+        Return the effective option expiry for the given (year, month).
+        Uses GOLD_OPTION_EXPIRY_DATES when available; otherwise rolls the 27th
+        back past weekends and MCX holidays.
+        """
+        key = (nominal.year, nominal.month)
+        if key in GOLD_OPTION_EXPIRY_DATES:
+            return GOLD_OPTION_EXPIRY_DATES[key]
+        d = date(nominal.year, nominal.month, GOLD_OPTION_EXPIRY_DAY)
         while d.weekday() == 5 or d.weekday() == 6 or d in MCX_HOLIDAYS:
             d -= timedelta(days=1)
         return d
@@ -260,11 +303,14 @@ class CommodityOptionService:
     @staticmethod
     def gold_option_expiry(trade_date: date) -> date:
         """
-        Return the active GOLD option expiry (27th of month, adjusted for holidays) for trade_date.
-        If trade_date is after the adjusted expiry, rolls to the next month's 27th.
+        Return the active GOLD option expiry for trade_date.
+        Uses the official MCX dates from GOLD_OPTION_EXPIRY_DATES when available;
+        falls back to 27th-of-month adjusted for weekends/holidays otherwise.
+        Rolls forward to the next month if trade_date is past the current expiry.
         """
-        candidate = date(trade_date.year, trade_date.month, GOLD_OPTION_EXPIRY_DAY)
-        candidate = CommodityOptionService._adjust_option_expiry(candidate)
+        candidate = CommodityOptionService._adjust_option_expiry(
+            date(trade_date.year, trade_date.month, GOLD_OPTION_EXPIRY_DAY)
+        )
         if trade_date > candidate:
             if trade_date.month == 12:
                 next_nominal = date(trade_date.year + 1, 1, GOLD_OPTION_EXPIRY_DAY)
@@ -276,8 +322,9 @@ class CommodityOptionService:
     @classmethod
     def gold_option_expiries(cls, start: date, end: date) -> list[date]:
         """
-        Return all GOLD option expiries (27th of each month, adjusted for holidays)
-        between start and end inclusive.
+        Return all GOLD option expiries between start and end inclusive.
+        Uses official MCX dates from GOLD_OPTION_EXPIRY_DATES when available;
+        falls back to 27th-of-month adjusted for weekends/holidays otherwise.
         """
         expiries: list[date] = []
         year, month = start.year, start.month

@@ -17,11 +17,15 @@ Exit:
   - Max 5 trades per day per symbol
 
 GOLD contract structure (MCX):
-  Futures expiry : 5th of every month
-  Option expiry  : 27th of every month
+  Futures expiry : 5th of even months (Feb/Apr/Jun/Aug/Oct/Dec), adjusted for
+                   weekends/holidays — e.g. Apr 2 and Dec 4 in 2026.
+  Option expiry  : official MCX dates per GOLD_OPTION_EXPIRY_DATES lookup
+                   (e.g. Dec 31, Mar 24, Apr 30, Jun 30, Aug 31, Sep 23,
+                   Oct 30, Nov 25 in 2025-2026); falls back to 27th adjusted
+                   for weekends/holidays for months not in the lookup table.
   ATM strike     : recomputed every trading day from the active futures price
                    (rounded to nearest ₹100 interval)
-  Trade window   : 28th of previous month → 27th of current month
+  Trade window   : 28th of previous month → option expiry of current month
 
 Other commodities still use the last-Thursday expiry calendar with a
 fixed ATM derived from the first day of the expiry month.
