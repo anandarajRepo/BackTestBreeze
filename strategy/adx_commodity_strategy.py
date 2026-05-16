@@ -342,8 +342,8 @@ class ADXCommodityStrategy:
 
             trade_date = win_start
             while trade_date <= win_end:
-                # Skip weekends; MCX trades Mon–Sat but not Sun
-                if trade_date.weekday() == 6:  # Sunday
+                # Skip weekends and MCX exchange holidays
+                if not self.commodity_service.is_mcx_trading_day(trade_date):
                     trade_date += timedelta(days=1)
                     continue
 
