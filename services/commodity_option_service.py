@@ -168,12 +168,16 @@ class CommodityOptionService:
 
     @staticmethod
     def last_thursday(year: int, month: int) -> date:
-        """Return the last Thursday of the given month."""
+        """Return the last Thursday of the given month, adjusted back if it falls on a holiday."""
         last_day = monthrange(year, month)[1]
         d = date(year, month, last_day)
         # weekday(): Monday=0, Thursday=3
         offset = (d.weekday() - 3) % 7
-        return d - timedelta(days=offset)
+        d = d - timedelta(days=offset)
+        # Roll back past any MCX holidays (weekends already excluded by Thursday logic)
+        while d in MCX_HOLIDAYS:
+            d -= timedelta(days=1)
+        return d
 
     @classmethod
     def monthly_expiries(cls, start: date, end: date) -> list[date]:
@@ -217,13 +221,12 @@ class CommodityOptionService:
     def _last_trading_day(nominal: date) -> date:
         """
         Return the last trading day for a contract with the given nominal expiry.
-        If the 5th falls on Saturday or Sunday, the last trading day is the preceding Friday.
+        Rolls back past weekends and MCX holidays.
         """
-        if nominal.weekday() == 5:   # Saturday → Friday
-            return nominal - timedelta(days=1)
-        if nominal.weekday() == 6:   # Sunday → Friday
-            return nominal - timedelta(days=2)
-        return nominal
+        d = nominal
+        while d.weekday() == 5 or d.weekday() == 6 or d in MCX_HOLIDAYS:
+            d -= timedelta(days=1)
+        return d
 
     @staticmethod
     def gold_futures_expiry(trade_date: date) -> date:
@@ -247,30 +250,42 @@ class CommodityOptionService:
         raise ValueError(f"Could not find GOLD futures expiry for {trade_date}")
 
     @staticmethod
+    def _adjust_option_expiry(nominal: date) -> date:
+        """Roll the nominal option expiry back past weekends and MCX holidays."""
+        d = nominal
+        while d.weekday() == 5 or d.weekday() == 6 or d in MCX_HOLIDAYS:
+            d -= timedelta(days=1)
+        return d
+
+    @staticmethod
     def gold_option_expiry(trade_date: date) -> date:
         """
-        Return the active GOLD option expiry (27th of month) for trade_date.
-        If trade_date is after the 27th, rolls to the next month's 27th.
+        Return the active GOLD option expiry (27th of month, adjusted for holidays) for trade_date.
+        If trade_date is after the adjusted expiry, rolls to the next month's 27th.
         """
         candidate = date(trade_date.year, trade_date.month, GOLD_OPTION_EXPIRY_DAY)
+        candidate = CommodityOptionService._adjust_option_expiry(candidate)
         if trade_date > candidate:
             if trade_date.month == 12:
-                candidate = date(trade_date.year + 1, 1, GOLD_OPTION_EXPIRY_DAY)
+                next_nominal = date(trade_date.year + 1, 1, GOLD_OPTION_EXPIRY_DAY)
             else:
-                candidate = date(trade_date.year, trade_date.month + 1, GOLD_OPTION_EXPIRY_DAY)
+                next_nominal = date(trade_date.year, trade_date.month + 1, GOLD_OPTION_EXPIRY_DAY)
+            candidate = CommodityOptionService._adjust_option_expiry(next_nominal)
         return candidate
 
     @classmethod
     def gold_option_expiries(cls, start: date, end: date) -> list[date]:
         """
-        Return all GOLD option expiries (27th of each month) between start and end inclusive.
+        Return all GOLD option expiries (27th of each month, adjusted for holidays)
+        between start and end inclusive.
         """
         expiries: list[date] = []
         year, month = start.year, start.month
         while True:
-            expiry = date(year, month, GOLD_OPTION_EXPIRY_DAY)
-            if expiry > end:
+            nominal = date(year, month, GOLD_OPTION_EXPIRY_DAY)
+            if nominal > end:
                 break
+            expiry = cls._adjust_option_expiry(nominal)
             if expiry >= start:
                 expiries.append(expiry)
             if month == 12:
