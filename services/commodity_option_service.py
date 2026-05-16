@@ -37,10 +37,53 @@ GOLD_OPTION_EXPIRY_DAY:  int = 27  # options  expire on the 27th of each month
 # MCX GOLD futures only exist for even months (Feb, Apr, Jun, Aug, Oct, Dec)
 GOLD_FUTURES_CONTRACT_MONTHS: tuple[int, ...] = (2, 4, 6, 8, 10, 12)
 
+# MCX exchange holidays (market closed; no trading in any commodity)
+MCX_HOLIDAYS: frozenset[date] = frozenset({
+    # 2025
+    date(2025, 1, 26),   # Republic Day
+    date(2025, 2, 26),   # Mahashivratri
+    date(2025, 3, 14),   # Holi
+    date(2025, 4, 10),   # Ram Navami
+    date(2025, 4, 14),   # Dr. Ambedkar Jayanti / Good Friday
+    date(2025, 4, 18),   # Good Friday (MCX)
+    date(2025, 5, 12),   # Buddha Purnima
+    date(2025, 6, 7),    # Eid ul-Adha (Id-ul-Zuha)
+    date(2025, 8, 15),   # Independence Day
+    date(2025, 8, 27),   # Ganesh Chaturthi
+    date(2025, 10, 2),   # Gandhi Jayanti / Mahatma Gandhi Jayanti
+    date(2025, 10, 2),   # Dussehra (if same date)
+    date(2025, 10, 20),  # Diwali / Laxmi Puja (Muhurat trading day — full holiday)
+    date(2025, 10, 21),  # Diwali (Balipratipada)
+    date(2025, 11, 5),   # Gurunanak Jayanti
+    date(2025, 12, 25),  # Christmas
+    # 2026
+    date(2026, 1, 26),   # Republic Day
+    date(2026, 2, 3),    # Mahashivratri (Feb 3, 2026)
+    date(2026, 2, 4),    # MCX holiday (Mahashivratri observed / bridge day)
+    date(2026, 3, 3),    # Holi
+    date(2026, 3, 30),   # Ram Navami
+    date(2026, 4, 3),    # Good Friday
+    date(2026, 4, 14),   # Dr. Ambedkar Jayanti
+    date(2026, 4, 30),   # Buddha Purnima
+    date(2026, 8, 15),   # Independence Day
+    date(2026, 9, 19),   # Ganesh Chaturthi
+    date(2026, 10, 2),   # Gandhi Jayanti
+    date(2026, 10, 19),  # Dussehra
+    date(2026, 11, 8),   # Diwali / Laxmi Puja
+    date(2026, 11, 9),   # Balipratipada
+    date(2026, 11, 24),  # Gurunanak Jayanti
+    date(2026, 12, 25),  # Christmas
+})
+
 
 class CommodityOptionService:
     def __init__(self, breeze: BreezeConnect):
         self.breeze = breeze
+
+    @staticmethod
+    def is_mcx_trading_day(d: date) -> bool:
+        """Return True if MCX trades on this date (not a weekend or known holiday)."""
+        return d.weekday() != 6 and d not in MCX_HOLIDAYS
 
     # ── ATM helpers ───────────────────────────────────────────────────────────
 
@@ -166,33 +209,37 @@ class CommodityOptionService:
     # ── GOLD-specific contract helpers ────────────────────────────────────────
 
     @staticmethod
+    def _nominal_futures_expiry(year: int, month: int) -> date:
+        """Return the nominal MCX GOLD futures expiry date (always the 5th)."""
+        return date(year, month, GOLD_FUTURES_EXPIRY_DAY)
+
     @staticmethod
-    def _adjusted_futures_expiry(year: int, month: int) -> date:
+    def _last_trading_day(nominal: date) -> date:
         """
-        Return the MCX GOLD futures expiry date for the given contract month.
-        Nominal expiry is the 5th; if it falls on a Saturday or Sunday, shift
-        back to the preceding Friday so the Breeze API can locate the contract.
+        Return the last trading day for a contract with the given nominal expiry.
+        If the 5th falls on Saturday or Sunday, the last trading day is the preceding Friday.
         """
-        d = date(year, month, GOLD_FUTURES_EXPIRY_DAY)
-        if d.weekday() == 5:   # Saturday → Friday
-            d -= timedelta(days=1)
-        elif d.weekday() == 6:  # Sunday → Friday
-            d -= timedelta(days=2)
-        return d
+        if nominal.weekday() == 5:   # Saturday → Friday
+            return nominal - timedelta(days=1)
+        if nominal.weekday() == 6:   # Sunday → Friday
+            return nominal - timedelta(days=2)
+        return nominal
 
     @staticmethod
     def gold_futures_expiry(trade_date: date) -> date:
         """
-        Return the active GOLD futures expiry for trade_date.
-        MCX GOLD futures only exist for even months: Feb, Apr, Jun, Aug, Oct, Dec.
-        The nominal expiry is the 5th; weekends are shifted to the preceding Friday.
+        Return the nominal MCX GOLD futures expiry date for the active contract on
+        trade_date. The contract is considered expired once its last trading day has
+        passed (weekends shift the last trading day to the preceding Friday, but the
+        nominal contract date stays on the 5th and is what the Breeze API expects).
         """
         year, month = trade_date.year, trade_date.month
         for _ in range(13):
             if month in GOLD_FUTURES_CONTRACT_MONTHS:
-                candidate = CommodityOptionService._adjusted_futures_expiry(year, month)
-                if candidate >= trade_date:
-                    return candidate
+                nominal = CommodityOptionService._nominal_futures_expiry(year, month)
+                last_trading = CommodityOptionService._last_trading_day(nominal)
+                if last_trading >= trade_date:
+                    return nominal   # always return the nominal 5th for the API
             month += 1
             if month > 12:
                 month = 1
