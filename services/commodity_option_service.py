@@ -11,7 +11,7 @@ Supported commodities and their MCX stock codes / strike intervals:
 Monthly expiry on MCX falls on the last Thursday of each month.
 
 GOLD-specific contract structure:
-  Futures expiry : 5th of every month
+  Futures expiry : 5th of even months only (Feb, Apr, Jun, Aug, Oct, Dec)
   Option expiry  : 27th of every month
   ATM strike     : computed daily from the active futures contract price
 """
@@ -31,8 +31,11 @@ COMMODITY_CONFIG: dict[str, tuple[str, int]] = {
 }
 
 # GOLD MCX contract expiry days
-GOLD_FUTURES_EXPIRY_DAY: int = 5   # futures expire on the 5th of each month
+GOLD_FUTURES_EXPIRY_DAY: int = 5   # futures expire on the 5th of the contract month
 GOLD_OPTION_EXPIRY_DAY:  int = 27  # options  expire on the 27th of each month
+
+# MCX GOLD futures only exist for even months (Feb, Apr, Jun, Aug, Oct, Dec)
+GOLD_FUTURES_CONTRACT_MONTHS: tuple[int, ...] = (2, 4, 6, 8, 10, 12)
 
 
 class CommodityOptionService:
@@ -165,16 +168,22 @@ class CommodityOptionService:
     @staticmethod
     def gold_futures_expiry(trade_date: date) -> date:
         """
-        Return the active GOLD futures expiry (5th of month) for trade_date.
-        If trade_date is after the 5th, rolls to the next month's 5th.
+        Return the active GOLD futures expiry (5th of the contract month) for trade_date.
+        MCX GOLD futures only exist for even months: Feb, Apr, Jun, Aug, Oct, Dec.
+        Finds the nearest upcoming contract month whose 5th is >= trade_date.
         """
-        candidate = date(trade_date.year, trade_date.month, GOLD_FUTURES_EXPIRY_DAY)
-        if trade_date > candidate:
-            if trade_date.month == 12:
-                candidate = date(trade_date.year + 1, 1, GOLD_FUTURES_EXPIRY_DAY)
-            else:
-                candidate = date(trade_date.year, trade_date.month + 1, GOLD_FUTURES_EXPIRY_DAY)
-        return candidate
+        year, month = trade_date.year, trade_date.month
+        # Iterate through at most 12 months to find the next valid contract month
+        for _ in range(13):
+            if month in GOLD_FUTURES_CONTRACT_MONTHS:
+                candidate = date(year, month, GOLD_FUTURES_EXPIRY_DAY)
+                if candidate >= trade_date:
+                    return candidate
+            month += 1
+            if month > 12:
+                month = 1
+                year += 1
+        raise ValueError(f"Could not find GOLD futures expiry for {trade_date}")
 
     @staticmethod
     def gold_option_expiry(trade_date: date) -> date:
