@@ -170,13 +170,19 @@ class CommodityOptionService:
         """
         Return the active GOLD futures expiry (5th of the contract month) for trade_date.
         MCX GOLD futures only exist for even months: Feb, Apr, Jun, Aug, Oct, Dec.
-        Finds the nearest upcoming contract month whose 5th is >= trade_date.
+        If the 5th falls on Saturday or Sunday, the expiry rolls back to the preceding Friday.
+        Finds the nearest upcoming contract month whose (adjusted) expiry is >= trade_date.
         """
         year, month = trade_date.year, trade_date.month
-        # Iterate through at most 12 months to find the next valid contract month
         for _ in range(13):
             if month in GOLD_FUTURES_CONTRACT_MONTHS:
                 candidate = date(year, month, GOLD_FUTURES_EXPIRY_DAY)
+                # Roll back to Friday if the 5th is a weekend (5=Sat, 6=Sun)
+                weekday = candidate.weekday()
+                if weekday == 5:          # Saturday → Friday
+                    candidate -= timedelta(days=1)
+                elif weekday == 6:        # Sunday → Friday
+                    candidate -= timedelta(days=2)
                 if candidate >= trade_date:
                     return candidate
             month += 1
