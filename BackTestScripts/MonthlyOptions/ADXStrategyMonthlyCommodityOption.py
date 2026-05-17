@@ -58,7 +58,7 @@ print("Session Generated Successfully\n")
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 START_DATE    = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE      = "30-Apr-2026"   # format: DD-Mon-YYYY
+END_DATE      = "30-May-2026"   # format: DD-Mon-YYYY
 
 COMMODITIES   = ["GOLD"]
 
