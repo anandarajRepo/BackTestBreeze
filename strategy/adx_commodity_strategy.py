@@ -415,6 +415,127 @@ class ADXCommodityStrategy:
 
         return expiry_results
 
+    # ── SILVER daily-ATM backtest ─────────────────────────────────────────────
+
+    def run_silver_daily_atm_backtest(self) -> list[MonthlyExpiryResult]:
+        """
+        SILVER-specific backtest where the ATM strike is recomputed every trading day
+        using the active futures contract price (futures expire 5th of every month,
+        options expire 27th of each month).
+
+        For each option-expiry window (28th prev month → 27th current month):
+          • Iterate over each calendar day in the window.
+          • Fetch the SILVER futures open price → derive daily ATM strike (₹500 interval).
+          • Fetch that day's 1-min option candles for the daily ATM CE and PE.
+          • Run ADX strategy on each day's candle set independently.
+          • Aggregate all daily trades under one MonthlyExpiryResult.
+        """
+        from services.commodity_option_service import CommodityOptionService
+
+        expiry_results: list[MonthlyExpiryResult] = []
+
+        option_expiries = CommodityOptionService.silver_option_expiries(
+            self.start_date, self.end_date
+        )
+
+        print(f"\n{'='*80}")
+        print(f"  SILVER ADX STRATEGY — DAILY ATM | FUTURES EXP 5th | OPTIONS EXP 27th")
+        print(f"  Period     : {self.start_date}  →  {self.end_date}")
+        print(f"  Capital    : ₹{self.capital:,.0f}  |  ADX period: {self.adx_period}"
+              f"  |  ADX threshold: {self.adx_threshold}")
+        print(f"  Option expiries found: {len(option_expiries)}")
+        print(f"{'='*80}\n")
+
+        for option_expiry in option_expiries:
+            win_start, win_end = CommodityOptionService.silver_option_window(option_expiry)
+
+            win_start = max(win_start, self.start_date)
+            win_end   = min(win_end,   self.end_date)
+            if win_start > win_end:
+                continue
+
+            print(f"  Option expiry {option_expiry}  |  Window {win_start} → {win_end}")
+
+            month_result = MonthlyExpiryResult(
+                expiry_date=option_expiry,
+                commodity="SILVER",
+                atm_strike=0,
+                commodity_open=0.0,
+            )
+
+            ce_all: list[CommodityTradeResult] = []
+            pe_all: list[CommodityTradeResult] = []
+
+            trade_date = win_start
+            while trade_date <= win_end:
+                if not self.commodity_service.is_mcx_trading_day(trade_date):
+                    trade_date += timedelta(days=1)
+                    continue
+
+                try:
+                    futures_price, daily_strike = (
+                        self.commodity_service.get_silver_daily_atm(trade_date)
+                    )
+                except Exception as exc:
+                    print(f"    [{trade_date}] futures price unavailable: {exc}")
+                    trade_date += timedelta(days=1)
+                    continue
+
+                month_result.daily_atm[trade_date] = (futures_price, daily_strike)
+
+                if month_result.atm_strike == 0:
+                    month_result.atm_strike    = daily_strike
+                    month_result.commodity_open = futures_price
+
+                print(
+                    f"    {trade_date}  futures {futures_price:.2f}"
+                    f"  →  daily ATM {daily_strike}"
+                )
+
+                day_start = datetime(trade_date.year, trade_date.month, trade_date.day, 9, 0, 0)
+                day_end   = datetime(trade_date.year, trade_date.month, trade_date.day, 23, 30, 0)
+
+                for opt_type in ("CE", "PE"):
+                    try:
+                        candles = self.commodity_service.get_option_candles(
+                            stock_code="SILVER",
+                            strike=daily_strike,
+                            expiry_date=option_expiry,
+                            option_type=opt_type,
+                            start=day_start,
+                            end=day_end,
+                            interval=self.interval,
+                        )
+                        day_trades = self._run_symbol(
+                            candles, "SILVER", opt_type, daily_strike, option_expiry
+                        )
+                        for t in day_trades:
+                            t.futures_price = futures_price
+
+                        if opt_type == "CE":
+                            ce_all.extend(day_trades)
+                        else:
+                            pe_all.extend(day_trades)
+
+                        if day_trades:
+                            print(f"      {opt_type} strike {daily_strike}: {len(day_trades)} trades")
+                    except Exception as exc:
+                        print(f"      [{opt_type}] {trade_date} error: {exc}")
+
+                trade_date += timedelta(days=1)
+
+            month_result.ce_trades = ce_all
+            month_result.pe_trades = pe_all
+            expiry_results.append(month_result)
+
+            total_pnl = sum(t.pnl for t in month_result.all_trades)
+            print(
+                f"  → Expiry {option_expiry}: {len(month_result.all_trades)} trades"
+                f"  PnL ₹{total_pnl:+.2f}\n"
+            )
+
+        return expiry_results
+
     # ── Monthly expiry orchestration ──────────────────────────────────────────
 
     def run_monthly_backtest(self) -> list[MonthlyExpiryResult]:

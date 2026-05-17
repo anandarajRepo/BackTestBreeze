@@ -16,6 +16,14 @@ GOLD-specific contract structure:
   Option expiry  : official MCX dates per GOLD_OPTION_EXPIRY_DATES lookup;
                    falls back to 27th adjusted for weekends/holidays.
   ATM strike     : computed daily from the active futures contract price
+
+SILVER-specific contract structure:
+  Futures expiry : 5th of every month, adjusted for weekends/holidays per
+                   SILVER_FUTURES_EXPIRY_DATES lookup.
+  Option expiry  : official MCX dates per SILVER_OPTION_EXPIRY_DATES lookup;
+                   falls back to 27th adjusted for weekends/holidays.
+  ATM strike     : computed daily from the active futures contract price
+                   (rounded to nearest ₹500 interval)
 """
 
 from calendar import monthrange
@@ -39,6 +47,13 @@ GOLD_OPTION_EXPIRY_DAY:  int = 27  # options  expire on the 27th of each month
 # MCX GOLD futures only exist for even months (Feb, Apr, Jun, Aug, Oct, Dec)
 GOLD_FUTURES_CONTRACT_MONTHS: tuple[int, ...] = (2, 4, 6, 8, 10, 12)
 
+# SILVER MCX contract expiry days
+SILVER_FUTURES_EXPIRY_DAY: int = 5   # futures expire on the 5th of every month
+SILVER_OPTION_EXPIRY_DAY:  int = 27  # options  expire on the 27th of each month
+
+# MCX SILVER futures exist for all calendar months
+SILVER_FUTURES_CONTRACT_MONTHS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+
 # Explicit MCX GOLD futures expiry dates for 2026 (source: Groww / MCX official calendar).
 # Key: (year, month) — months are even only (Feb=2, Apr=4, Jun=6, Aug=8, Oct=10, Dec=12).
 # These are the dates the Breeze API expects as the contract expiry parameter.
@@ -49,6 +64,40 @@ GOLD_FUTURES_EXPIRY_DATES: dict[tuple[int, int], date] = {
     (2026, 8):  date(2026, 8,  5),   # August    5, 2026
     (2026, 10): date(2026, 10, 5),   # October   5, 2026
     (2026, 12): date(2026, 12, 4),   # December  4, 2026  (Dec 5 is Saturday)
+}
+
+# Explicit MCX SILVER futures expiry dates for 2026 (source: Groww / MCX official calendar).
+# Key: (year, month) — all calendar months.
+SILVER_FUTURES_EXPIRY_DATES: dict[tuple[int, int], date] = {
+    (2026, 1):  date(2026, 1,  5),   # January   5, 2026
+    (2026, 2):  date(2026, 2,  5),   # February  5, 2026
+    (2026, 3):  date(2026, 3,  5),   # March     5, 2026
+    (2026, 4):  date(2026, 4,  2),   # April     2, 2026  (Apr 5 is Sunday; Apr 3 Good Friday)
+    (2026, 5):  date(2026, 5,  5),   # May       5, 2026
+    (2026, 6):  date(2026, 6,  5),   # June      5, 2026
+    (2026, 7):  date(2026, 7,  6),   # July      6, 2026  (Jul 5 is Sunday)
+    (2026, 8):  date(2026, 8,  5),   # August    5, 2026
+    (2026, 9):  date(2026, 9,  5),   # September 5, 2026
+    (2026, 10): date(2026, 10, 5),   # October   5, 2026
+    (2026, 11): date(2026, 11, 5),   # November  5, 2026
+    (2026, 12): date(2026, 12, 4),   # December  4, 2026  (Dec 5 is Saturday)
+}
+
+# Explicit MCX SILVER option expiry dates for 2025-2026 (source: Groww / MCX official calendar).
+# Key: (year, month) — every calendar month.
+SILVER_OPTION_EXPIRY_DATES: dict[tuple[int, int], date] = {
+    (2025, 12): date(2025, 12, 31),  # December 31, 2025
+    (2026, 1):  date(2026, 1,  27),  # January  27, 2026
+    (2026, 2):  date(2026, 2,  27),  # February 27, 2026
+    (2026, 3):  date(2026, 3,  24),  # March    24, 2026
+    (2026, 4):  date(2026, 4,  30),  # April    30, 2026
+    (2026, 5):  date(2026, 5,  27),  # May      27, 2026
+    (2026, 6):  date(2026, 6,  30),  # June     30, 2026
+    (2026, 7):  date(2026, 7,  27),  # July     27, 2026
+    (2026, 8):  date(2026, 8,  31),  # August   31, 2026
+    (2026, 9):  date(2026, 9,  23),  # September 23, 2026
+    (2026, 10): date(2026, 10, 30),  # October  30, 2026
+    (2026, 11): date(2026, 11, 25),  # November 25, 2026
 }
 
 # Explicit MCX GOLD option expiry dates for 2025-2026 (source: Groww / MCX official calendar).
@@ -369,5 +418,123 @@ class CommodityOptionService:
         """
         _, strike_interval = COMMODITY_CONFIG["GOLD"]
         price = self.get_gold_futures_price(trade_date)
+        strike = self.atm_strike(price, strike_interval)
+        return price, strike
+
+    # ── SILVER-specific contract helpers ──────────────────────────────────────
+
+    @staticmethod
+    def _nominal_silver_futures_expiry(year: int, month: int) -> date:
+        """
+        Return the MCX SILVER futures expiry date for the given contract month.
+        Uses the explicit lookup table when available; otherwise falls back to
+        the generic 5th-of-month rule adjusted for weekends/holidays.
+        """
+        if (year, month) in SILVER_FUTURES_EXPIRY_DATES:
+            return SILVER_FUTURES_EXPIRY_DATES[(year, month)]
+        return date(year, month, SILVER_FUTURES_EXPIRY_DAY)
+
+    @staticmethod
+    def silver_futures_expiry(trade_date: date) -> date:
+        """
+        Return the MCX SILVER futures expiry date for the active contract on trade_date.
+        SILVER futures trade every calendar month (unlike GOLD which is even months only).
+        The contract is considered active as long as its expiry date >= trade_date.
+        """
+        year, month = trade_date.year, trade_date.month
+        for _ in range(13):
+            expiry = CommodityOptionService._nominal_silver_futures_expiry(year, month)
+            if expiry >= trade_date:
+                return expiry
+            month += 1
+            if month > 12:
+                month = 1
+                year += 1
+        raise ValueError(f"Could not find SILVER futures expiry for {trade_date}")
+
+    @staticmethod
+    def _adjust_silver_option_expiry(nominal: date) -> date:
+        """
+        Return the effective SILVER option expiry for the given (year, month).
+        Uses SILVER_OPTION_EXPIRY_DATES when available; otherwise rolls the 27th
+        back past weekends and MCX holidays.
+        """
+        key = (nominal.year, nominal.month)
+        if key in SILVER_OPTION_EXPIRY_DATES:
+            return SILVER_OPTION_EXPIRY_DATES[key]
+        d = date(nominal.year, nominal.month, SILVER_OPTION_EXPIRY_DAY)
+        while d.weekday() == 5 or d.weekday() == 6 or d in MCX_HOLIDAYS:
+            d -= timedelta(days=1)
+        return d
+
+    @staticmethod
+    def silver_option_expiry(trade_date: date) -> date:
+        """
+        Return the active SILVER option expiry for trade_date.
+        Uses official MCX dates from SILVER_OPTION_EXPIRY_DATES when available;
+        falls back to 27th-of-month adjusted for weekends/holidays otherwise.
+        Rolls forward to the next month if trade_date is past the current expiry.
+        """
+        candidate = CommodityOptionService._adjust_silver_option_expiry(
+            date(trade_date.year, trade_date.month, SILVER_OPTION_EXPIRY_DAY)
+        )
+        if trade_date > candidate:
+            if trade_date.month == 12:
+                next_nominal = date(trade_date.year + 1, 1, SILVER_OPTION_EXPIRY_DAY)
+            else:
+                next_nominal = date(trade_date.year, trade_date.month + 1, SILVER_OPTION_EXPIRY_DAY)
+            candidate = CommodityOptionService._adjust_silver_option_expiry(next_nominal)
+        return candidate
+
+    @classmethod
+    def silver_option_expiries(cls, start: date, end: date) -> list[date]:
+        """
+        Return all SILVER option expiries between start and end inclusive.
+        Uses official MCX dates from SILVER_OPTION_EXPIRY_DATES when available;
+        falls back to 27th-of-month adjusted for weekends/holidays otherwise.
+        """
+        expiries: list[date] = []
+        year, month = start.year, start.month
+        while True:
+            nominal = date(year, month, SILVER_OPTION_EXPIRY_DAY)
+            if nominal > end:
+                break
+            expiry = cls._adjust_silver_option_expiry(nominal)
+            if expiry >= start:
+                expiries.append(expiry)
+            if month == 12:
+                year += 1
+                month = 1
+            else:
+                month += 1
+        return expiries
+
+    @classmethod
+    def silver_option_window(cls, option_expiry: date) -> tuple[date, date]:
+        """
+        Trading window for a SILVER option expiry:
+        from the 28th of the previous month through the option expiry date.
+        """
+        if option_expiry.month == 1:
+            win_start = date(option_expiry.year - 1, 12, 28)
+        else:
+            win_start = date(option_expiry.year, option_expiry.month - 1, 28)
+        return win_start, option_expiry
+
+    def get_silver_futures_price(self, trade_date: date) -> float:
+        """
+        Return the opening SILVER futures price on trade_date using the active
+        futures contract (expiry = 5th of the appropriate month).
+        """
+        futures_expiry = self.silver_futures_expiry(trade_date)
+        return self.get_commodity_open("SILVER", trade_date, expiry_date=futures_expiry)
+
+    def get_silver_daily_atm(self, trade_date: date) -> tuple[float, int]:
+        """
+        Fetch SILVER futures price for trade_date and return (futures_price, atm_strike).
+        ATM is rounded to the nearest ₹500 interval.
+        """
+        _, strike_interval = COMMODITY_CONFIG["SILVER"]
+        price = self.get_silver_futures_price(trade_date)
         strike = self.atm_strike(price, strike_interval)
         return price, strike
