@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from typing import Literal
 
 
 @dataclass
@@ -40,6 +41,36 @@ class MonthlyExpiryResult:
     @property
     def all_trades(self) -> list[CommodityTradeResult]:
         return self.ce_trades + self.pe_trades
+
+
+@dataclass
+class FuturesTradeResult:
+    symbol: str
+    commodity: str
+    direction: Literal["LONG", "SHORT"]
+    expiry_date: date
+    entry_time: datetime
+    exit_time: datetime
+    entry_price: float
+    exit_price: float
+    lots: int
+    lot_size: int
+    pnl: float
+    exit_reason: str          # "ADX_CROSSOVER", "SQUARE_OFF", or "REVERSAL"
+    adx_at_entry: float
+    di_plus_at_entry: float
+    di_minus_at_entry: float
+    adx_at_exit: float
+    di_plus_at_exit: float
+    di_minus_at_exit: float
+    duration_minutes: int
+
+
+@dataclass
+class FuturesExpiryResult:
+    expiry_date: date
+    commodity: str
+    trades: list["FuturesTradeResult"] = field(default_factory=list)
 
 
 @dataclass
