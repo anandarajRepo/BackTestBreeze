@@ -27,6 +27,15 @@ GOLD contract structure (MCX):
                    (rounded to nearest ₹100 interval)
   Trade window   : 28th of previous month → option expiry of current month
 
+SILVER contract structure (MCX):
+  Futures expiry : 5th of every month, adjusted for weekends/holidays per
+                   SILVER_FUTURES_EXPIRY_DATES lookup.
+  Option expiry  : official MCX dates per SILVER_OPTION_EXPIRY_DATES lookup;
+                   falls back to 27th adjusted for weekends/holidays.
+  ATM strike     : recomputed every trading day from the active futures price
+                   (rounded to nearest ₹500 interval)
+  Trade window   : 28th of previous month → option expiry of current month
+
 Other commodities still use the last-Thursday expiry calendar with a
 fixed ATM derived from the first day of the expiry month.
 
@@ -34,6 +43,7 @@ Usage:
   Set START_DATE / END_DATE to the desired backtest window (DD-Mon-YYYY).
   Add or remove symbols from COMMODITIES as needed.
   Set GOLD_DAILY_ATM = True (default) to use the new daily-ATM logic for GOLD.
+  Set SILVER_DAILY_ATM = True (default) to use the daily-ATM logic for SILVER.
 """
 
 import os
@@ -60,7 +70,7 @@ print("Session Generated Successfully\n")
 START_DATE    = "01-Jan-2026"   # format: DD-Mon-YYYY
 END_DATE      = "30-May-2026"   # format: DD-Mon-YYYY
 
-COMMODITIES   = ["GOLD"]
+COMMODITIES   = ["GOLD", "SILVER"]
 
 CAPITAL       = 100_000.0       # capital per contract (used for position sizing)
 ADX_PERIOD    = 16              # lookback period for ADX / DI calculation
@@ -68,8 +78,12 @@ ADX_THRESHOLD = 25.0            # minimum ADX value required to enter a trade
 INTERVAL      = "1minute"       # candle interval for option data
 
 # When True and COMMODITIES contains "GOLD", use the daily-ATM logic:
-#   futures expire 5th, options expire 27th, ATM recomputed each trading day.
+#   futures expire 5th of even months, options expire 27th, ATM recomputed each trading day.
 GOLD_DAILY_ATM = True
+
+# When True and COMMODITIES contains "SILVER", use the daily-ATM logic:
+#   futures expire 5th of every month, options expire 27th, ATM recomputed each trading day.
+SILVER_DAILY_ATM = True
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
@@ -87,11 +101,36 @@ if __name__ == "__main__":
         interval=INTERVAL,
     )
 
-    if GOLD_DAILY_ATM and "GOLD" in COMMODITIES:
-        # GOLD: daily ATM from active futures, options expire 27th
-        expiry_results = strategy.run_gold_daily_atm_backtest()
-    else:
-        # Other commodities: fixed monthly ATM, last-Thursday expiry
-        expiry_results = strategy.run_monthly_backtest()
+    all_expiry_results = []
 
-    ADXCommodityStrategy.print_report(expiry_results)
+    if GOLD_DAILY_ATM and "GOLD" in COMMODITIES:
+        # GOLD: daily ATM from active futures (even months), options expire 27th
+        gold_results = strategy.run_gold_daily_atm_backtest()
+        all_expiry_results.extend(gold_results)
+
+    if SILVER_DAILY_ATM and "SILVER" in COMMODITIES:
+        # SILVER: daily ATM from active futures (every month), options expire 27th
+        silver_results = strategy.run_silver_daily_atm_backtest()
+        all_expiry_results.extend(silver_results)
+
+    other_commodities = [
+        c for c in COMMODITIES
+        if not (c == "GOLD" and GOLD_DAILY_ATM)
+        and not (c == "SILVER" and SILVER_DAILY_ATM)
+    ]
+    if other_commodities:
+        # Other commodities: fixed monthly ATM, last-Thursday expiry
+        other_strategy = ADXCommodityStrategy(
+            commodity_service=commodity_service,
+            commodities=other_commodities,
+            capital=CAPITAL,
+            adx_period=ADX_PERIOD,
+            adx_threshold=ADX_THRESHOLD,
+            start_date=START_DATE,
+            end_date=END_DATE,
+            interval=INTERVAL,
+        )
+        other_results = other_strategy.run_monthly_backtest()
+        all_expiry_results.extend(other_results)
+
+    ADXCommodityStrategy.print_report(all_expiry_results)
