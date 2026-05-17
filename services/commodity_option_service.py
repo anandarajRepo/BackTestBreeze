@@ -69,18 +69,18 @@ GOLD_FUTURES_EXPIRY_DATES: dict[tuple[int, int], date] = {
 # Explicit MCX SILVER futures expiry dates for 2026 (source: Groww / MCX official calendar).
 # Key: (year, month) — all calendar months.
 SILVER_FUTURES_EXPIRY_DATES: dict[tuple[int, int], date] = {
-    (2026, 1):  date(2026, 1,  5),   # January   5, 2026
-    (2026, 2):  date(2026, 2,  5),   # February  5, 2026
-    (2026, 3):  date(2026, 3,  5),   # March     5, 2026
-    (2026, 4):  date(2026, 4,  2),   # April     2, 2026  (Apr 5 is Sunday; Apr 3 Good Friday)
-    (2026, 5):  date(2026, 5,  5),   # May       5, 2026
-    (2026, 6):  date(2026, 6,  5),   # June      5, 2026
-    (2026, 7):  date(2026, 7,  6),   # July      6, 2026  (Jul 5 is Sunday)
-    (2026, 8):  date(2026, 8,  5),   # August    5, 2026
-    (2026, 9):  date(2026, 9,  5),   # September 5, 2026
-    (2026, 10): date(2026, 10, 5),   # October   5, 2026
-    (2026, 11): date(2026, 11, 5),   # November  5, 2026
-    (2026, 12): date(2026, 12, 4),   # December  4, 2026  (Dec 5 is Saturday)
+    (2026, 1):  date(2026, 1,  30),  # January  30, 2026
+    (2026, 2):  date(2026, 2,  27),  # February 27, 2026
+    (2026, 3):  date(2026, 3,  31),  # March    31, 2026
+    (2026, 4):  date(2026, 4,  30),  # April    30, 2026
+    (2026, 5):  date(2026, 5,  29),  # May      29, 2026
+    (2026, 6):  date(2026, 6,  30),  # June     30, 2026
+    (2026, 7):  date(2026, 7,  31),  # July     31, 2026
+    (2026, 8):  date(2026, 8,  31),  # August   31, 2026
+    (2026, 9):  date(2026, 9,  30),  # September 30, 2026
+    (2026, 10): date(2026, 10, 30),  # October  30, 2026
+    (2026, 11): date(2026, 11, 30),  # November 30, 2026
+    (2026, 12): date(2026, 12, 31),  # December 31, 2026
 }
 
 # Explicit MCX SILVER option expiry dates for 2025-2026 (source: Groww / MCX official calendar).
@@ -88,16 +88,17 @@ SILVER_FUTURES_EXPIRY_DATES: dict[tuple[int, int], date] = {
 SILVER_OPTION_EXPIRY_DATES: dict[tuple[int, int], date] = {
     (2025, 12): date(2025, 12, 31),  # December 31, 2025
     (2026, 1):  date(2026, 1,  27),  # January  27, 2026
-    (2026, 2):  date(2026, 2,  27),  # February 27, 2026
-    (2026, 3):  date(2026, 3,  24),  # March    24, 2026
-    (2026, 4):  date(2026, 4,  30),  # April    30, 2026
-    (2026, 5):  date(2026, 5,  27),  # May      27, 2026
-    (2026, 6):  date(2026, 6,  30),  # June     30, 2026
-    (2026, 7):  date(2026, 7,  27),  # July     27, 2026
-    (2026, 8):  date(2026, 8,  31),  # August   31, 2026
-    (2026, 9):  date(2026, 9,  23),  # September 23, 2026
-    (2026, 10): date(2026, 10, 30),  # October  30, 2026
-    (2026, 11): date(2026, 11, 25),  # November 25, 2026
+    (2026, 2):  date(2026, 2,  24),  # February 24, 2026
+    (2026, 3):  date(2026, 3,  26),  # March    26, 2026
+    (2026, 4):  date(2026, 4,  24),  # April    24, 2026
+    (2026, 5):  date(2026, 5,  26),  # May      26, 2026
+    (2026, 6):  date(2026, 6,  25),  # June     25, 2026
+    (2026, 7):  date(2026, 7,  28),  # July     28, 2026
+    (2026, 8):  date(2026, 8,  26),  # August   26, 2026
+    (2026, 9):  date(2026, 9,  24),  # September 24, 2026
+    (2026, 10): date(2026, 10, 27),  # October  27, 2026
+    (2026, 11): date(2026, 11, 24),  # November 24, 2026
+    (2026, 12): date(2026, 12, 24),  # December 24, 2026
 }
 
 # Explicit MCX GOLD option expiry dates for 2025-2026 (source: Groww / MCX official calendar).
