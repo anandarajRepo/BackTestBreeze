@@ -66,21 +66,22 @@ GOLD_FUTURES_EXPIRY_DATES: dict[tuple[int, int], date] = {
     (2026, 12): date(2026, 12, 4),   # December  4, 2026  (Dec 5 is Saturday)
 }
 
-# Explicit MCX SILVER futures expiry dates for 2026 (source: Groww / MCX official calendar).
+# Explicit MCX SILVER futures expiry dates for 2026 as expected by the Breeze API.
 # Key: (year, month) — all calendar months.
+# These are the 5th-of-month dates the Breeze API uses, adjusted back past weekends/holidays.
 SILVER_FUTURES_EXPIRY_DATES: dict[tuple[int, int], date] = {
-    (2026, 1):  date(2026, 1,  30),  # January  30, 2026
-    (2026, 2):  date(2026, 2,  27),  # February 27, 2026
-    (2026, 3):  date(2026, 3,  31),  # March    31, 2026
-    (2026, 4):  date(2026, 4,  30),  # April    30, 2026
-    (2026, 5):  date(2026, 5,  29),  # May      29, 2026
-    (2026, 6):  date(2026, 6,  30),  # June     30, 2026
-    (2026, 7):  date(2026, 7,  31),  # July     31, 2026
-    (2026, 8):  date(2026, 8,  31),  # August   31, 2026
-    (2026, 9):  date(2026, 9,  30),  # September 30, 2026
-    (2026, 10): date(2026, 10, 30),  # October  30, 2026
-    (2026, 11): date(2026, 11, 30),  # November 30, 2026
-    (2026, 12): date(2026, 12, 31),  # December 31, 2026
+    (2026, 1):  date(2026, 1,  5),   # January   5, 2026 (Monday)
+    (2026, 2):  date(2026, 2,  5),   # February  5, 2026 (Thursday)
+    (2026, 3):  date(2026, 3,  5),   # March     5, 2026 (Thursday)
+    (2026, 4):  date(2026, 4,  2),   # April     5 is Sunday; Apr 3 Good Friday → Apr 2
+    (2026, 5):  date(2026, 5,  5),   # May       5, 2026 (Tuesday)
+    (2026, 6):  date(2026, 6,  5),   # June      5, 2026 (Friday)
+    (2026, 7):  date(2026, 7,  3),   # July      5 is Sunday; Jul 4 Saturday → Jul 3
+    (2026, 8):  date(2026, 8,  5),   # August    5, 2026 (Wednesday)
+    (2026, 9):  date(2026, 9,  4),   # September 5 is Saturday → Sep 4
+    (2026, 10): date(2026, 10, 5),   # October   5, 2026 (Monday)
+    (2026, 11): date(2026, 11, 5),   # November  5, 2026 (Thursday)
+    (2026, 12): date(2026, 12, 4),   # December  5 is Saturday → Dec 4
 }
 
 # Explicit MCX SILVER option expiry dates for 2025-2026 (source: Groww / MCX official calendar).
