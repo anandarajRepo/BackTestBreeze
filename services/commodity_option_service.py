@@ -540,3 +540,31 @@ class CommodityOptionService:
         price = self.get_silver_futures_price(trade_date)
         strike = self.atm_strike(price, strike_interval)
         return price, strike
+
+    # ── Futures candle fetching ───────────────────────────────────────────────
+
+    def get_futures_candles(
+        self,
+        stock_code: str,
+        expiry_date: date,
+        start: datetime,
+        end: datetime,
+        interval: str = "1minute",
+    ) -> list[dict]:
+        """Fetch intraday candles for an MCX commodity futures contract."""
+        exchange_code, _ = COMMODITY_CONFIG[stock_code]
+        expiry_str = datetime(
+            expiry_date.year, expiry_date.month, expiry_date.day, 6, 0, 0
+        ).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+        resp = self.breeze.get_historical_data_v2(
+            interval=interval,
+            from_date=start,
+            to_date=end,
+            stock_code=stock_code,
+            exchange_code=exchange_code,
+            product_type="futures",
+            expiry_date=expiry_str,
+        )
+
+        return resp.get("Success") or []
