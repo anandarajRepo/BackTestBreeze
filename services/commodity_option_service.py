@@ -114,7 +114,7 @@ class CommodityOptionService:
     @staticmethod
     def is_mcx_trading_day(d: date) -> bool:
         """Return True if MCX trades on this date (not a weekend or known holiday)."""
-        return d.weekday() != 6 and d not in MCX_HOLIDAYS
+        return d.weekday() not in (5, 6) and d not in MCX_HOLIDAYS
 
     # ── ATM helpers ───────────────────────────────────────────────────────────
 
