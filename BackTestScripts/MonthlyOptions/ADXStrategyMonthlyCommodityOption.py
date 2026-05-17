@@ -79,7 +79,7 @@ INTERVAL      = "1minute"       # candle interval for option data
 
 # When True and COMMODITIES contains "GOLD", use the daily-ATM logic:
 #   futures expire 5th of even months, options expire 27th, ATM recomputed each trading day.
-GOLD_DAILY_ATM = False
+GOLD_DAILY_ATM = True
 
 # When True and COMMODITIES contains "SILVER", use the daily-ATM logic:
 #   futures expire 5th of every month, options expire 27th, ATM recomputed each trading day.
