@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from typing import Literal
 
 
 @dataclass
@@ -34,6 +35,36 @@ class WeeklyExpiryResult:
     @property
     def all_trades(self) -> list[HTFTradeResult]:
         return self.ce_trades + self.pe_trades
+
+
+@dataclass
+class HTFFuturesTradeResult:
+    symbol: str
+    commodity: str
+    direction: Literal["LONG", "SHORT"]
+    expiry_date: date
+    entry_time: datetime
+    exit_time: datetime
+    entry_price: float
+    exit_price: float
+    lots: int
+    lot_size: int
+    pnl: float
+    exit_reason: str          # "SQUARE_OFF"
+    htf_bias: str             # "BULLISH" or "BEARISH"
+    htf_open: float
+    htf_close: float
+    ema_at_entry: float
+    volume_at_entry: float
+    duration_minutes: int
+
+
+@dataclass
+class MonthlyFuturesExpiryResult:
+    expiry_date: date
+    commodity: str
+    futures_open: float       # first-day open price used for reference
+    trades: list["HTFFuturesTradeResult"] = field(default_factory=list)
 
 
 @dataclass
