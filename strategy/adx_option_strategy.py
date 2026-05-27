@@ -28,6 +28,24 @@ _SQUARE_OFF   = time(15, 20)
 _MAX_TRADES_PER_DAY = 5
 
 
+def _capital_allocation_pct(price: float) -> float:
+    """
+    Return the fraction of capital to allocate based on option price:
+      price <= 30          →  10%
+      31 <= price <= 60    →  30%
+      61 <= price <= 100   →  50%
+      price > 100          → 100%
+    """
+    if price <= 30:
+        return 0.10
+    elif price <= 60:
+        return 0.30
+    elif price <= 100:
+        return 0.50
+    else:
+        return 1.00
+
+
 def _wilder_ewm(series: pd.Series, period: int) -> pd.Series:
     """Wilder's smoothing: EWM with alpha = 1/period, adjust=False."""
     return series.ewm(alpha=1.0 / period, adjust=False).mean()
@@ -255,9 +273,11 @@ class ADXOptionStrategy:
                     signal = (prev_di_minus <= prev_di_plus) and (di_minus > di_plus)
 
                 if signal and price > 0:
-                    entry_price = price
-                    shares      = max(floor(self.capital / entry_price), 1)
-                    in_position = True
+                    entry_price      = price
+                    alloc_pct        = _capital_allocation_pct(entry_price)
+                    allocated_capital = self.capital * alloc_pct
+                    shares           = max(floor(allocated_capital / entry_price), 1)
+                    in_position      = True
                     entry_row   = row
                     daily_trade_count[today] += 1
 
