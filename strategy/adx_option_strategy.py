@@ -16,6 +16,7 @@ from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from math import floor
 
+import numpy as np
 import pandas as pd
 
 from models.adx_models import ADXTradeResult, SymbolMetrics, WeeklyExpiryResult
@@ -65,7 +66,7 @@ def resample_candles(candles: list[dict], seconds: int) -> list[dict]:
         .reset_index()
         .rename(columns={"_bucket": "datetime"})
     )
-    resampled["datetime"] = resampled["datetime"].dt.to_pydatetime()
+    resampled["datetime"] = np.array(resampled["datetime"].dt.to_pydatetime())
     return resampled.to_dict("records")
 
 
