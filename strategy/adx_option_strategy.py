@@ -22,6 +22,53 @@ from models.adx_models import ADXTradeResult, SymbolMetrics, WeeklyExpiryResult
 from services.nifty_option_service import NiftyOptionService
 
 
+def resample_candles(candles: list[dict], seconds: int) -> list[dict]:
+    """
+    Resample a list of 1-second OHLC dicts into N-second candles.
+
+    Each input dict must have keys: datetime, open, high, low, close, volume (optional).
+    Output dicts have the same schema; datetime is the candle open-time (floor of the
+    N-second bucket).
+
+    seconds=1 returns the original data unchanged.
+    """
+    if seconds <= 1 or not candles:
+        return candles
+
+    df = pd.DataFrame(candles)
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    df = df.sort_values("datetime").reset_index(drop=True)
+
+    for col in ("open", "high", "low", "close"):
+        df[col] = df[col].astype(float)
+
+    # Build a bucket key: floor each timestamp to the nearest N-second boundary
+    # relative to midnight so that bucket boundaries are consistent across days.
+    epoch = pd.Timestamp("1970-01-01")
+    df["_bucket"] = df["datetime"].apply(
+        lambda ts: ts.floor(f"{seconds}s")
+    )
+
+    agg: dict = {
+        "open":  "first",
+        "high":  "max",
+        "low":   "min",
+        "close": "last",
+    }
+    if "volume" in df.columns:
+        df["volume"] = pd.to_numeric(df["volume"], errors="coerce").fillna(0)
+        agg["volume"] = "sum"
+
+    resampled = (
+        df.groupby("_bucket")
+        .agg(agg)
+        .reset_index()
+        .rename(columns={"_bucket": "datetime"})
+    )
+    resampled["datetime"] = resampled["datetime"].dt.to_pydatetime()
+    return resampled.to_dict("records")
+
+
 _ENTRY_START  = time(9, 30)
 _ENTRY_CUTOFF = time(14, 45)
 _SQUARE_OFF   = time(15, 20)
@@ -154,14 +201,16 @@ class ADXOptionStrategy:
         start_date: str = "",
         end_date: str = "",
         interval: str = "1minute",
+        resample_seconds: int = 1,
     ):
-        self.nifty_service  = nifty_service
-        self.capital        = capital
-        self.adx_period     = adx_period
-        self.adx_threshold  = adx_threshold
-        self.start_date     = datetime.strptime(start_date, "%d-%b-%Y").date()
-        self.end_date       = datetime.strptime(end_date,   "%d-%b-%Y").date()
-        self.interval       = interval
+        self.nifty_service    = nifty_service
+        self.capital          = capital
+        self.adx_period       = adx_period
+        self.adx_threshold    = adx_threshold
+        self.start_date       = datetime.strptime(start_date, "%d-%b-%Y").date()
+        self.end_date         = datetime.strptime(end_date,   "%d-%b-%Y").date()
+        self.interval         = interval
+        self.resample_seconds = resample_seconds
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -321,10 +370,14 @@ class ADXOptionStrategy:
         expiry_results: list[WeeklyExpiryResult] = []
 
         wednesdays = NiftyOptionService.weekly_wednesdays(self.start_date, self.end_date)
+        effective_tf = (
+            f"{self.resample_seconds}s" if self.resample_seconds > 1 else self.interval
+        )
         print(f"\n{'='*70}")
         print(f"  NIFTY ADX STRATEGY — WEEKLY EXPIRY BACKTEST")
-        print(f"  Period  : {self.start_date}  →  {self.end_date}")
-        print(f"  Capital : ₹{self.capital:,.0f}  |  ADX period: {self.adx_period}"
+        print(f"  Period    : {self.start_date}  →  {self.end_date}")
+        print(f"  Fetch TF  : {self.interval}  |  Effective TF: {effective_tf}")
+        print(f"  Capital   : ₹{self.capital:,.0f}  |  ADX period: {self.adx_period}"
               f"  |  ADX threshold: {self.adx_threshold}")
         print(f"  Expiries found: {len(wednesdays)}")
         print(f"{'='*70}\n")
@@ -362,6 +415,8 @@ class ADXOptionStrategy:
                         end=to_dt,
                         interval=self.interval,
                     )
+                    if self.resample_seconds > 1:
+                        candles = resample_candles(candles, self.resample_seconds)
                     trades = self._run_symbol(candles, opt_type, strike, expiry)
 
                     if opt_type == "CE":
