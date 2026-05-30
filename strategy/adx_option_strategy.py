@@ -36,12 +36,12 @@ def _capital_allocation_pct(price: float) -> float:
       61 <= price <= 100   →  50%
       price > 100          → 100%
     """
-    if price <= 30:
-        return 0.10
-    elif price <= 60:
+    if price <= 20:
         return 0.30
+    elif price <= 60:
+        return 1.00
     elif price <= 100:
-        return 0.50
+        return 1.00
     else:
         return 1.00
 

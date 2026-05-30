@@ -43,7 +43,7 @@ print("Session Generated Successfully\n")
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 START_DATE     = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE       = "05-May-2026"   # format: DD-Mon-YYYY
+END_DATE       = "26-May-2026"   # format: DD-Mon-YYYY
 
 CAPITAL        = 100000.0       # capital per contract (used for position sizing)
 ADX_PERIOD     = 16              # lookback period for ADX / DI calculation
