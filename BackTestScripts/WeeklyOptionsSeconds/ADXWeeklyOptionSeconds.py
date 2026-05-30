@@ -1,6 +1,6 @@
 """
-Nifty 50 Weekly Options — ADX DI+/DI- Crossover Backtest
-=========================================================
+Nifty 50 Weekly Options — ADX DI+/DI- Crossover Backtest  (1-second data)
+==========================================================================
 
 Entry:
   CE — buy when DI+ crosses above DI- and ADX >= ADX_THRESHOLD
@@ -15,10 +15,18 @@ Exit:
 Note: no stop-loss in this strategy.
 
 Usage:
-  Set START_DATE / END_DATE to the desired backtest window (YYYY-MM-DD).
-  Each Tuesday in that range is treated as a weekly expiry.
-  The ATM strike is computed from Monday's Nifty opening price.
-  The trade window for each expiry is Wednesday (prior week) → Tuesday.
+  1. Set START_DATE / END_DATE to the desired backtest window (DD-Mon-YYYY).
+  2. Set RESAMPLE_SECONDS to the desired candle size for the strategy:
+       1  → raw 1-second bars (no resampling)
+       5  → 5-second bars
+       10 → 10-second bars
+       15 → 15-second bars
+       30 → 30-second bars
+       45 → 45-second bars
+       60 → 60-second (1-minute) bars
+     Any positive integer is accepted.
+  Data is always fetched as 1-second bars from Breeze; resampling is done
+  locally before the ADX indicator and strategy logic run.
 """
 
 import os
@@ -42,13 +50,20 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE     = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE       = "26-May-2026"   # format: DD-Mon-YYYY
+START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
+END_DATE          = "26-May-2026"   # format: DD-Mon-YYYY
 
-CAPITAL        = 100000.0       # capital per contract (used for position sizing)
-ADX_PERIOD     = 16              # lookback period for ADX / DI calculation
-ADX_THRESHOLD  = 30.0            # minimum ADX value required to enter a trade
-INTERVAL       = "1second"       # candle interval: "1second", "1minute", "5minute", "30minute", or "1day"
+CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
+ADX_PERIOD        = 16              # lookback period for ADX / DI calculation
+ADX_THRESHOLD     = 30.0            # minimum ADX value required to enter a trade
+
+# Always fetch raw 1-second bars from Breeze; resampling is done locally.
+INTERVAL          = "1second"
+
+# Candle size (in seconds) used for the strategy.
+# Supported examples: 1, 5, 10, 15, 30, 45, 60, 120, 300, …
+# Set to 1 to use raw 1-second bars without any resampling.
+RESAMPLE_SECONDS  = 5
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
@@ -63,6 +78,7 @@ if __name__ == "__main__":
         start_date=START_DATE,
         end_date=END_DATE,
         interval=INTERVAL,
+        resample_seconds=RESAMPLE_SECONDS,
     )
 
     expiry_results = strategy.run_weekly_backtest()
