@@ -66,7 +66,7 @@ def resample_candles(candles: list[dict], seconds: int) -> list[dict]:
         .reset_index()
         .rename(columns={"_bucket": "datetime"})
     )
-    resampled["datetime"] = resampled["datetime"].dt.to_pydatetime(warn=False)
+    resampled["datetime"] = resampled["datetime"].dt.to_pydatetime()
     return resampled.to_dict("records")
 
 
