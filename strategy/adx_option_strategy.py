@@ -203,6 +203,7 @@ class ADXOptionStrategy:
         end_date: str = "",
         interval: str = "1minute",
         resample_seconds: int = 1,
+        print_resampled: bool = False,
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -212,6 +213,7 @@ class ADXOptionStrategy:
         self.end_date         = datetime.strptime(end_date,   "%d-%b-%Y").date()
         self.interval         = interval
         self.resample_seconds = resample_seconds
+        self.print_resampled  = print_resampled
 
     # ── Trend-strength sizing ─────────────────────────────────────────────────
 
@@ -401,6 +403,58 @@ class ADXOptionStrategy:
 
         return trades
 
+    # ── Debug / inspection helpers ────────────────────────────────────────────
+
+    def _print_resampled_with_trades(
+        self,
+        candles: list[dict],
+        trades: list[ADXTradeResult],
+        strike: int,
+        option_type: str,
+        expiry_date: date,
+    ) -> None:
+        """
+        Print the final resampled candle DataFrame (with ADX/DI+/DI- indicators
+        merged in) followed by the trades generated for the same contract.
+        """
+        symbol_label = f"NIFTY{strike}{option_type}"
+        print(f"\n{'='*90}")
+        print(f"  RESAMPLED DATA + TRADES — {symbol_label}  (expiry {expiry_date})")
+        print(f"{'='*90}")
+
+        if not candles:
+            print("  (no candle data)")
+            return
+
+        df = pd.DataFrame(candles)
+        df["datetime"] = pd.to_datetime(df["datetime"])
+        df = df.sort_values("datetime").reset_index(drop=True)
+
+        indicators = compute_adx(candles, self.adx_period)
+        merged = df.merge(
+            indicators[["datetime", "adx", "di_plus", "di_minus"]],
+            on="datetime",
+            how="left",
+        )
+
+        with pd.option_context(
+            "display.max_rows", None,
+            "display.max_columns", None,
+            "display.width", None,
+        ):
+            print(merged.to_string(index=False))
+
+        print(f"\n  Trades for {symbol_label}: {len(trades)}")
+        for t in sorted(trades, key=lambda x: x.entry_time):
+            pnl_sign = "+" if t.pnl >= 0 else ""
+            print(
+                f"    {t.entry_time.strftime('%d-%b %H:%M:%S')} → "
+                f"{t.exit_time.strftime('%d-%b %H:%M:%S')}"
+                f"  entry {t.entry_price:.2f}  exit {t.exit_price:.2f}"
+                f"  qty {t.shares}  pnl {pnl_sign}{t.pnl:.2f}"
+                f"  ({t.exit_reason})"
+            )
+
     # ── Weekly expiry orchestration ───────────────────────────────────────────
 
     def run_weekly_backtest(self) -> list[WeeklyExpiryResult]:
@@ -460,6 +514,11 @@ class ADXOptionStrategy:
                         week_result.ce_trades = trades
                     else:
                         week_result.pe_trades = trades
+
+                    if self.print_resampled:
+                        self._print_resampled_with_trades(
+                            candles, trades, strike, opt_type, expiry
+                        )
 
                     print(f"    {opt_type}: {len(trades)} trades")
                 except Exception as exc:
