@@ -65,6 +65,10 @@ INTERVAL          = "1second"
 # Set to 1 to use raw 1-second bars without any resampling.
 RESAMPLE_SECONDS  = 5
 
+# Print the final resampled DataFrame (with ADX/DI indicators) alongside the
+# trades for each option contract before the summary report.
+PRINT_RESAMPLED   = True
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -79,6 +83,7 @@ if __name__ == "__main__":
         end_date=END_DATE,
         interval=INTERVAL,
         resample_seconds=RESAMPLE_SECONDS,
+        print_resampled=PRINT_RESAMPLED,
     )
 
     expiry_results = strategy.run_weekly_backtest()
