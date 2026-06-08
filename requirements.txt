@@ -1,3 +1,4 @@
 breeze-connect
 python-dotenv
 pandas
+pyarrow
