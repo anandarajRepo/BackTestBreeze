@@ -2,3 +2,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 .env
+
+# Cached candle data fetched from the Breeze API
+.candle_cache/
+*.parquet

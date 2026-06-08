@@ -6,6 +6,8 @@ from datetime import date, datetime, time, timedelta
 
 from breeze_connect import BreezeConnect
 
+from services.candle_cache import CandleCache
+
 
 class NiftyOptionService:
     STRIKE_INTERVAL = 50
@@ -30,8 +32,11 @@ class NiftyOptionService:
     _MARKET_OPEN = time(9, 15)
     _MARKET_CLOSE = time(15, 30)
 
-    def __init__(self, breeze: BreezeConnect):
+    def __init__(self, breeze: BreezeConnect, cache: CandleCache | None = None):
         self.breeze = breeze
+        # File-based cache so the same (symbol, interval, date range) is fetched
+        # from the Breeze API only once and reused on later backtest runs.
+        self.cache = cache if cache is not None else CandleCache()
 
     # ── ATM helpers ───────────────────────────────────────────────────────────
 
@@ -119,24 +124,37 @@ class NiftyOptionService:
             expiry_date.year, expiry_date.month, expiry_date.day, 6, 0, 0
         ).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
-        merged: dict[str, dict] = {}
-        for chunk_start, chunk_end in self._chunk_windows(start, end, interval):
-            resp = self.breeze.get_historical_data_v2(
-                interval=interval,
-                from_date=chunk_start,
-                to_date=chunk_end,
-                stock_code="NIFTY",
-                exchange_code="NFO",
-                product_type="options",
-                expiry_date=expiry_str,
-                right=right,
-                strike_price=str(strike),
-            )
-            for candle in resp.get("Success") or []:
-                # De-dupe on the candle timestamp in case chunk edges overlap.
-                merged[candle["datetime"]] = candle
+        def _fetch() -> list[dict]:
+            merged: dict[str, dict] = {}
+            for chunk_start, chunk_end in self._chunk_windows(start, end, interval):
+                resp = self.breeze.get_historical_data_v2(
+                    interval=interval,
+                    from_date=chunk_start,
+                    to_date=chunk_end,
+                    stock_code="NIFTY",
+                    exchange_code="NFO",
+                    product_type="options",
+                    expiry_date=expiry_str,
+                    right=right,
+                    strike_price=str(strike),
+                )
+                for candle in resp.get("Success") or []:
+                    # De-dupe on the candle timestamp in case chunk edges overlap.
+                    merged[candle["datetime"]] = candle
+            return [merged[k] for k in sorted(merged)]
 
-        return [merged[k] for k in sorted(merged)]
+        return self.cache.get_or_fetch(
+            _fetch,
+            stock_code="NIFTY",
+            exchange_code="NFO",
+            product_type="options",
+            interval=interval,
+            expiry=expiry_str,
+            right=right,
+            strike=strike,
+            start=start,
+            end=end,
+        )
 
     def get_nifty_spot_candles(
         self,
@@ -145,15 +163,27 @@ class NiftyOptionService:
         interval: str = "5minute",
     ) -> list[dict]:
         """Fetch Nifty 50 spot (cash) candles for signal generation."""
-        resp = self.breeze.get_historical_data_v2(
-            interval=interval,
-            from_date=start,
-            to_date=end,
+
+        def _fetch() -> list[dict]:
+            resp = self.breeze.get_historical_data_v2(
+                interval=interval,
+                from_date=start,
+                to_date=end,
+                stock_code="NIFTY",
+                exchange_code="NSE",
+                product_type="cash",
+            )
+            return resp.get("Success") or []
+
+        return self.cache.get_or_fetch(
+            _fetch,
             stock_code="NIFTY",
             exchange_code="NSE",
             product_type="cash",
+            interval=interval,
+            start=start,
+            end=end,
         )
-        return resp.get("Success") or []
 
     # ── Weekly expiry calendar ────────────────────────────────────────────────
 
