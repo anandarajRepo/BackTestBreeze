@@ -141,6 +141,18 @@ def compute_adx(candles: list[dict], period: int = 14) -> pd.DataFrame:
     dx = (100 * (di_plus - di_minus).abs() / dx_denom).where(dx_denom != 0, 0.0)
     adx = _wilder_ewm(dx, period)
 
+    # Warm-up masking. Wilder's ADX is only meaningful once the smoothing has
+    # seen enough bars: DI+/DI- need ~`period` bars, and ADX (a smoothed DX)
+    # needs ~`2 * period` bars before it reflects genuine trend strength rather
+    # than the seed value. Without this, the ADX gate would fire on noisy
+    # warm-up values right at the start of each contract's data.
+    n = len(df)
+    di_warmup  = min(period, n)
+    adx_warmup = min(2 * period - 1, n)
+    di_plus.iloc[:di_warmup]   = np.nan
+    di_minus.iloc[:di_warmup]  = np.nan
+    adx.iloc[:adx_warmup]      = np.nan
+
     result = df[["datetime"]].copy()
     result["adx"]      = adx.round(4)
     result["di_plus"]  = di_plus.round(4)
@@ -214,35 +226,6 @@ class ADXOptionStrategy:
         self.interval         = interval
         self.resample_seconds = resample_seconds
         self.print_resampled  = print_resampled
-
-    # ── Trend-strength sizing ─────────────────────────────────────────────────
-
-    def _adx_size_factor(self, adx: float) -> float:
-        """
-        Convert the current ADX (trend strength) into a position-size multiplier.
-
-        ADX is no longer an entry gate; instead it scales how much capital the
-        crossover trade gets, relative to ``adx_threshold``:
-
-          adx >= adx_threshold          → 1.00  (strong trend, full size)
-          0.75 * threshold <= adx <      → 0.60  (developing trend, trimmed)
-          0.50 * threshold <= adx <      → 0.30  (weak trend, small probe)
-          adx <  0.50 * threshold        → 0.15  (choppy, minimal exposure)
-
-        NaN ADX (during warmup) is treated as the weakest bucket.
-        """
-        if adx is None or pd.isna(adx):
-            return 0.15
-
-        thr = self.adx_threshold
-        if adx >= thr:
-            return 1.00
-        elif adx >= 0.75 * thr:
-            return 0.60
-        elif adx >= 0.50 * thr:
-            return 0.30
-        else:
-            return 0.15
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -338,17 +321,25 @@ class ADXOptionStrategy:
                     entry_row   = None
 
             # ── Entry logic ───────────────────────────────────────────────
-            # The DI crossover is the trigger. ADX is NOT used as an entry gate
-            # here: at the moment DI+ and DI- cross, DI+ ≈ DI- so DX (and hence
-            # ADX) is near its lowest, which would make an `adx >= threshold`
-            # gate almost never fire. Instead ADX is used below to size/filter
-            # the position by trend strength.
+            # Standard ADX/DI system:
+            #   • ADX is the trend-strength FILTER — it must already be elevated
+            #     (adx >= adx_threshold) for the regime to be considered trending.
+            #     ADX is a smoothed average of DX over `adx_period` bars, so it
+            #     reflects the strength of the trend that has been building, not
+            #     the instantaneous DI gap at the crossover bar.
+            #   • The DI crossover is the TRIGGER — it times the entry within that
+            #     already-trending regime.
+            # Both conditions must hold on the same bar to enter.
             if (
                 not in_position
                 and prev_di_plus is not None
                 and _ENTRY_START <= t <= _ENTRY_CUTOFF
                 and daily_trade_count[today] < _MAX_TRADES_PER_DAY
             ):
+                # Filter: trend strength must already be elevated.
+                adx_ok = adx >= self.adx_threshold
+
+                # Trigger: DI crossover in the option's direction.
                 signal = False
                 if option_type == "CE":
                     # DI+ crosses above DI-
@@ -357,12 +348,9 @@ class ADXOptionStrategy:
                     # DI- crosses above DI+
                     signal = (prev_di_minus <= prev_di_plus) and (di_minus > di_plus)
 
-                if signal and price > 0:
+                if adx_ok and signal and price > 0:
                     entry_price       = price
                     alloc_pct         = _capital_allocation_pct(entry_price)
-                    # Scale exposure by trend strength (ADX): stronger trends get
-                    # a larger allocation, weak/choppy ones get trimmed down.
-                    alloc_pct        *= self._adx_size_factor(adx)
                     allocated_capital = self.capital * alloc_pct
                     shares            = max(floor(allocated_capital / entry_price), 1)
                     in_position       = True
