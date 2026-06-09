@@ -109,7 +109,8 @@ class NiftyOptionService:
         start: datetime,
         end: datetime,
         interval: str = "1minute",
-    ) -> list[dict]:
+        cache_only: bool = False,
+    ) -> list[dict] | None:
         """
         Fetch intraday candles for a Nifty option contract.
 
@@ -118,6 +119,10 @@ class NiftyOptionService:
         The request is paged into market-hours chunks (see ``_chunk_windows``) so
         that fine-grained intervals over multi-day windows are fetched in full
         rather than being truncated to Breeze's per-request row cap.
+
+        When ``cache_only`` is True, data is served exclusively from the local
+        cache; if the contract is not cached, ``None`` is returned (no API call)
+        so the caller can skip it.
         """
         right = "call" if option_type == "CE" else "put"
         expiry_str = datetime(
@@ -145,6 +150,7 @@ class NiftyOptionService:
 
         return self.cache.get_or_fetch(
             _fetch,
+            cache_only=cache_only,
             stock_code="NIFTY",
             exchange_code="NFO",
             product_type="options",
