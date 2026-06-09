@@ -69,6 +69,13 @@ RESAMPLE_SECONDS  = 5
 # trades for each option contract before the summary report.
 PRINT_RESAMPLED   = True
 
+# When True, candle data is served ONLY from the local cache — no Breeze API
+# calls are made. Any expiry whose data is not already cached is skipped and the
+# backtest moves on to the next expiry.
+# When False, data is read from cache as usual, and any data not present in the
+# cache is fetched from the Breeze API via a historical-data request.
+CACHE_ONLY        = False
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -84,6 +91,7 @@ if __name__ == "__main__":
         interval=INTERVAL,
         resample_seconds=RESAMPLE_SECONDS,
         print_resampled=PRINT_RESAMPLED,
+        cache_only=CACHE_ONLY,
     )
 
     expiry_results = strategy.run_weekly_backtest()

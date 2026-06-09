@@ -216,6 +216,7 @@ class ADXOptionStrategy:
         interval: str = "1minute",
         resample_seconds: int = 1,
         print_resampled: bool = False,
+        cache_only: bool = False,
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -226,6 +227,9 @@ class ADXOptionStrategy:
         self.interval         = interval
         self.resample_seconds = resample_seconds
         self.print_resampled  = print_resampled
+        # When True, candles are served only from the local cache; expiries with
+        # no cached data are skipped instead of fetching from the Breeze API.
+        self.cache_only       = cache_only
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -484,6 +488,27 @@ class ADXOptionStrategy:
             from_dt = datetime(win_start.year, win_start.month, win_start.day, 9, 15, 0)
             to_dt   = datetime(win_end.year,   win_end.month,   win_end.day,   15, 30, 0)
 
+            # In cache-only mode, first verify both legs are available in the
+            # cache; if any is missing, skip this expiry entirely.
+            if self.cache_only:
+                missing = False
+                for opt_type in ("CE", "PE"):
+                    cached = self.nifty_service.get_option_candles(
+                        strike=strike,
+                        expiry_date=expiry,
+                        option_type=opt_type,
+                        start=from_dt,
+                        end=to_dt,
+                        interval=self.interval,
+                        cache_only=True,
+                    )
+                    if not cached:
+                        missing = True
+                        break
+                if missing:
+                    print(f"    [cache-only] No cached data — skipping expiry {expiry}")
+                    continue
+
             for opt_type in ("CE", "PE"):
                 try:
                     candles = self.nifty_service.get_option_candles(
@@ -493,6 +518,7 @@ class ADXOptionStrategy:
                         start=from_dt,
                         end=to_dt,
                         interval=self.interval,
+                        cache_only=self.cache_only,
                     )
                     if self.resample_seconds > 1:
                         candles = resample_candles(candles, self.resample_seconds)

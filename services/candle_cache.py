@@ -78,15 +78,21 @@ class CandleCache:
         df = pd.DataFrame(candles)
         df.to_parquet(self._path(key), index=False)
 
-    def get_or_fetch(self, fetch_fn, **params) -> list[dict]:
+    def get_or_fetch(self, fetch_fn, *, cache_only: bool = False, **params) -> list[dict] | None:
         """
         Return cached candles for the given params, otherwise call ``fetch_fn()``
         (which must return a list[dict]), cache the result, and return it.
+
+        When ``cache_only`` is True, never call ``fetch_fn()``: return the cached
+        candles if present, otherwise return ``None`` to signal a cache miss (so
+        the caller can skip that contract/expiry instead of hitting the API).
         """
         key = self.make_key(**params)
         cached = self.load(key)
         if cached is not None:
             return cached
+        if cache_only:
+            return None
         candles = fetch_fn()
         self.save(key, candles)
         return candles
