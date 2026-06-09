@@ -54,8 +54,8 @@ START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
 END_DATE          = "26-May-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
-ADX_PERIOD        = 16              # lookback period for ADX / DI calculation
-ADX_THRESHOLD     = 30.0            # minimum ADX value required to enter a trade
+ADX_PERIOD        = 60              # lookback period for ADX / DI calculation
+ADX_THRESHOLD     = 24              # minimum ADX value required to enter a trade
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
@@ -67,14 +67,14 @@ RESAMPLE_SECONDS  = 5
 
 # Print the final resampled DataFrame (with ADX/DI indicators) alongside the
 # trades for each option contract before the summary report.
-PRINT_RESAMPLED   = True
+PRINT_RESAMPLED   = False
 
 # When True, candle data is served ONLY from the local cache — no Breeze API
 # calls are made. Any expiry whose data is not already cached is skipped and the
 # backtest moves on to the next expiry.
 # When False, data is read from cache as usual, and any data not present in the
 # cache is fetched from the Breeze API via a historical-data request.
-CACHE_ONLY        = False
+CACHE_ONLY        = True
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
