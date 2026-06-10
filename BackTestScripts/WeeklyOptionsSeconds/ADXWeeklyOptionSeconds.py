@@ -3,8 +3,9 @@ Nifty 50 Weekly Options — ADX DI+/DI- Crossover Backtest  (1-second data)
 ==========================================================================
 
 Entry:
-  CE — buy when DI+ crosses above DI- and ADX >= ADX_THRESHOLD
-  PE — buy when DI- crosses above DI+ and ADX >= ADX_THRESHOLD
+  CE — buy when DI+ crosses above DI-, ADX >= ADX_THRESHOLD, and volume is good
+  PE — buy when DI- crosses above DI+, ADX >= ADX_THRESHOLD, and volume is good
+       ("good volume" = entry bar volume >= VOLUME_FACTOR × rolling-avg volume)
 
 Exit:
   - DI direction reversal (crossover flips)
@@ -57,6 +58,12 @@ CAPITAL           = 100_000.0       # capital per contract (used for position si
 ADX_PERIOD        = 60              # lookback period for ADX / DI calculation
 ADX_THRESHOLD     = 24              # minimum ADX value required to enter a trade
 
+# Volume confirmation for entries. The entry bar's volume must be at least
+# VOLUME_FACTOR times the rolling-average volume (over ADX_PERIOD bars) for the
+# DI crossover signal to be taken. 1.0 = at least average volume; >1.0 demands
+# an above-average ("good") volume surge. Set to 0 to disable the volume filter.
+VOLUME_FACTOR     = 1.0
+
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
 
@@ -86,6 +93,7 @@ if __name__ == "__main__":
         capital=CAPITAL,
         adx_period=ADX_PERIOD,
         adx_threshold=ADX_THRESHOLD,
+        volume_factor=VOLUME_FACTOR,
         start_date=START_DATE,
         end_date=END_DATE,
         interval=INTERVAL,

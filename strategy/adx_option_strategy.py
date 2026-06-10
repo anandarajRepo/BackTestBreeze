@@ -2,8 +2,11 @@
 ADX DI+/DI- crossover strategy for Nifty weekly WeeklyOptions.
 
 Entry rules:
-  CE — buy when DI+ crosses above DI- and ADX >= threshold
-  PE — buy when DI- crosses above DI+ and ADX >= threshold
+  CE — buy when DI+ crosses above DI-, ADX >= threshold, and volume is good
+  PE — buy when DI- crosses above DI+, ADX >= threshold, and volume is good
+
+  "Good volume" means the entry bar's volume is at least `volume_factor` times
+  the rolling-average volume over `adx_period` bars.
 
 Exit rules:
   - DI direction reversal (crossover flips)
@@ -102,7 +105,8 @@ def _wilder_ewm(series: pd.Series, period: int) -> pd.Series:
 def compute_adx(candles: list[dict], period: int = 14) -> pd.DataFrame:
     """
     Compute ADX, DI+, DI- from a list of OHLC dicts.
-    Returns a DataFrame with columns: datetime, adx, di_plus, di_minus.
+    Returns a DataFrame with columns: datetime, adx, di_plus, di_minus, close,
+    volume and vol_avg (rolling average volume over `period` bars).
     """
     df = pd.DataFrame(candles)
     df["datetime"] = pd.to_datetime(df["datetime"])
@@ -110,6 +114,11 @@ def compute_adx(candles: list[dict], period: int = 14) -> pd.DataFrame:
 
     for col in ("open", "high", "low", "close"):
         df[col] = df[col].astype(float)
+
+    if "volume" in df.columns:
+        df["volume"] = pd.to_numeric(df["volume"], errors="coerce").fillna(0.0)
+    else:
+        df["volume"] = 0.0
 
     prev_high  = df["high"].shift(1)
     prev_low   = df["low"].shift(1)
@@ -153,11 +162,18 @@ def compute_adx(candles: list[dict], period: int = 14) -> pd.DataFrame:
     di_minus.iloc[:di_warmup]  = np.nan
     adx.iloc[:adx_warmup]      = np.nan
 
+    # Rolling average volume used as the "good volume" reference. We use the
+    # average of the prior `period` bars (shifted by one so the current bar's
+    # own volume does not inflate its own benchmark).
+    vol_avg = df["volume"].rolling(window=period, min_periods=1).mean().shift(1)
+
     result = df[["datetime"]].copy()
     result["adx"]      = adx.round(4)
     result["di_plus"]  = di_plus.round(4)
     result["di_minus"] = di_minus.round(4)
     result["close"]    = df["close"]
+    result["volume"]   = df["volume"]
+    result["vol_avg"]  = vol_avg
     return result
 
 
@@ -211,6 +227,7 @@ class ADXOptionStrategy:
         capital: float = 100_000.0,
         adx_period: int = 14,
         adx_threshold: float = 20.0,
+        volume_factor: float = 1.0,
         start_date: str = "",
         end_date: str = "",
         interval: str = "1minute",
@@ -222,6 +239,11 @@ class ADXOptionStrategy:
         self.capital          = capital
         self.adx_period       = adx_period
         self.adx_threshold    = adx_threshold
+        # Minimum ratio of the current bar's volume to the rolling average
+        # volume required to confirm an entry. 1.0 means the bar must have at
+        # least average volume; >1.0 demands an above-average ("good") volume
+        # surge. Set to 0 to disable the volume filter entirely.
+        self.volume_factor    = volume_factor
         self.start_date       = datetime.strptime(start_date, "%d-%b-%Y").date()
         self.end_date         = datetime.strptime(end_date,   "%d-%b-%Y").date()
         self.interval         = interval
@@ -271,6 +293,8 @@ class ADXOptionStrategy:
             di_plus  = row["di_plus"]
             di_minus = row["di_minus"]
             price    = row["close"]
+            volume   = row["volume"]
+            vol_avg  = row["vol_avg"]
 
             if pd.isna(adx) or pd.isna(di_plus) or pd.isna(di_minus):
                 prev_di_plus  = di_plus
@@ -343,6 +367,15 @@ class ADXOptionStrategy:
                 # Filter: trend strength must already be elevated.
                 adx_ok = adx >= self.adx_threshold
 
+                # Filter: confirm the move with good volume. The current bar's
+                # volume must be at least `volume_factor` times the rolling
+                # average volume. If the filter is disabled (factor <= 0) or no
+                # volume benchmark is available yet, this gate passes.
+                if self.volume_factor <= 0 or pd.isna(vol_avg) or vol_avg <= 0:
+                    volume_ok = True
+                else:
+                    volume_ok = volume >= self.volume_factor * vol_avg
+
                 # Trigger: DI crossover in the option's direction.
                 signal = False
                 if option_type == "CE":
@@ -352,7 +385,7 @@ class ADXOptionStrategy:
                     # DI- crosses above DI+
                     signal = (prev_di_minus <= prev_di_plus) and (di_minus > di_plus)
 
-                if adx_ok and signal and price > 0:
+                if adx_ok and volume_ok and signal and price > 0:
                     entry_price       = price
                     alloc_pct         = _capital_allocation_pct(entry_price)
                     allocated_capital = self.capital * alloc_pct
