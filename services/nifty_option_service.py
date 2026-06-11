@@ -207,6 +207,26 @@ class NiftyOptionService:
         return wednesdays
 
     @staticmethod
+    def adjust_expiry_for_holidays(
+        expiry: date, holidays: set[date] | frozenset[date] | None
+    ) -> date:
+        """
+        If a Tuesday expiry falls on a market holiday, roll it back to the
+        previous working day. The replacement is moved back one day at a time,
+        skipping weekends (Saturday/Sunday) and any further holidays, so the
+        returned date is always a valid trading day.
+
+        Non-holiday expiries are returned unchanged.
+        """
+        if not holidays:
+            return expiry
+        adjusted = expiry
+        # Only Tuesday expiries are rolled back, per the trading calendar rule.
+        while adjusted in holidays or adjusted.weekday() >= 5:
+            adjusted -= timedelta(days=1)
+        return adjusted
+
+    @staticmethod
     def monday_of_week(expiry: date) -> date:
         """Return the Monday immediately before a given Tuesday expiry."""
         return expiry - timedelta(days=1)

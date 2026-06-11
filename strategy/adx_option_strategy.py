@@ -234,6 +234,7 @@ class ADXOptionStrategy:
         resample_seconds: int = 1,
         print_resampled: bool = False,
         cache_only: bool = False,
+        market_holidays: set[date] | None = None,
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -252,6 +253,9 @@ class ADXOptionStrategy:
         # When True, candles are served only from the local cache; expiries with
         # no cached data are skipped instead of fetching from the Breeze API.
         self.cache_only       = cache_only
+        # Market holidays (NSE). When a Tuesday weekly expiry lands on one of
+        # these dates, the expiry is rolled back to the previous trading day.
+        self.market_holidays  = set(market_holidays) if market_holidays else set()
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -498,9 +502,19 @@ class ADXOptionStrategy:
         print(f"  Expiries found: {len(wednesdays)}")
         print(f"{'='*70}\n")
 
-        for expiry in wednesdays:
-            monday     = NiftyOptionService.monday_of_week(expiry)
-            win_start, win_end = NiftyOptionService.week_window(expiry)
+        for tuesday in wednesdays:
+            # The week's Monday and trading window are anchored to the original
+            # Tuesday. If that Tuesday is a market holiday, the actual contract
+            # expiry rolls back to the previous trading day (never a weekend).
+            monday     = NiftyOptionService.monday_of_week(tuesday)
+            win_start, _ = NiftyOptionService.week_window(tuesday)
+
+            expiry = NiftyOptionService.adjust_expiry_for_holidays(
+                tuesday, self.market_holidays
+            )
+            if expiry != tuesday:
+                print(f"  [holiday] Expiry {tuesday} is a holiday — rolled back to {expiry}")
+            win_end = expiry
 
             try:
                 nifty_open = self.nifty_service.get_nifty_open(monday)
