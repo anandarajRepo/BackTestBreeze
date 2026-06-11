@@ -227,6 +227,36 @@ class NiftyOptionService:
         return adjusted
 
     @staticmethod
+    def is_trading_day(
+        day: date, holidays: set[date] | frozenset[date] | None = None
+    ) -> bool:
+        """True if ``day`` is a weekday (Mon–Fri) and not a market holiday."""
+        if day.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+            return False
+        if holidays and day in holidays:
+            return False
+        return True
+
+    @classmethod
+    def trading_days(
+        cls,
+        start: date,
+        end: date,
+        holidays: set[date] | frozenset[date] | None = None,
+    ) -> list[date]:
+        """
+        Return every trading day in the inclusive range [start, end], skipping
+        weekends and market holidays.
+        """
+        days: list[date] = []
+        d = start
+        while d <= end:
+            if cls.is_trading_day(d, holidays):
+                days.append(d)
+            d += timedelta(days=1)
+        return days
+
+    @staticmethod
     def monday_of_week(expiry: date) -> date:
         """Return the Monday immediately before a given Tuesday expiry."""
         return expiry - timedelta(days=1)

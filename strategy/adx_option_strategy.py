@@ -235,6 +235,7 @@ class ADXOptionStrategy:
         print_resampled: bool = False,
         cache_only: bool = False,
         market_holidays: set[date] | None = None,
+        per_day_atm: bool = False,
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -256,6 +257,11 @@ class ADXOptionStrategy:
         # Market holidays (NSE). When a Tuesday weekly expiry lands on one of
         # these dates, the expiry is rolled back to the previous trading day.
         self.market_holidays  = set(market_holidays) if market_holidays else set()
+        # When True, a fresh ATM strike is chosen for each trading day based on
+        # that day's Nifty open (weekends/holidays are skipped), rather than
+        # anchoring a single ATM strike for the whole expiry week to the Monday
+        # open.
+        self.per_day_atm      = per_day_atm
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -516,27 +522,136 @@ class ADXOptionStrategy:
                 print(f"  [holiday] Expiry {tuesday} is a holiday — rolled back to {expiry}")
             win_end = expiry
 
+            if self.per_day_atm:
+                week_result = self._run_expiry_per_day(expiry, win_start, win_end)
+            else:
+                week_result = self._run_expiry_weekly(expiry, monday, win_start, win_end)
+
+            if week_result is not None:
+                expiry_results.append(week_result)
+
+        return expiry_results
+
+    def _run_expiry_weekly(
+        self, expiry: date, monday: date, win_start: date, win_end: date
+    ) -> WeeklyExpiryResult | None:
+        """
+        Original mode: a single ATM strike for the whole expiry week, anchored to
+        the week's Monday open, traded across the full window.
+        """
+        try:
+            nifty_open = self.nifty_service.get_nifty_open(monday)
+        except Exception as exc:
+            print(f"  [{expiry}] Could not get Nifty open for {monday}: {exc}")
+            return None
+
+        strike = NiftyOptionService.atm_strike(nifty_open)
+
+        print(f"  Expiry {expiry}  |  Monday open {nifty_open:.2f}  |  ATM {strike}")
+
+        week_result = WeeklyExpiryResult(
+            expiry_date=expiry,
+            atm_strike=strike,
+            nifty_open=nifty_open,
+        )
+
+        from_dt = datetime(win_start.year, win_start.month, win_start.day, 9, 15, 0)
+        to_dt   = datetime(win_end.year,   win_end.month,   win_end.day,   15, 30, 0)
+
+        # In cache-only mode, first verify both legs are available in the
+        # cache; if any is missing, skip this expiry entirely.
+        if self.cache_only:
+            missing = False
+            for opt_type in ("CE", "PE"):
+                cached = self.nifty_service.get_option_candles(
+                    strike=strike,
+                    expiry_date=expiry,
+                    option_type=opt_type,
+                    start=from_dt,
+                    end=to_dt,
+                    interval=self.interval,
+                    cache_only=True,
+                )
+                if not cached:
+                    missing = True
+                    break
+            if missing:
+                print(f"    [cache-only] No cached data — skipping expiry {expiry}")
+                return None
+
+        for opt_type in ("CE", "PE"):
             try:
-                nifty_open = self.nifty_service.get_nifty_open(monday)
+                candles = self.nifty_service.get_option_candles(
+                    strike=strike,
+                    expiry_date=expiry,
+                    option_type=opt_type,
+                    start=from_dt,
+                    end=to_dt,
+                    interval=self.interval,
+                    cache_only=self.cache_only,
+                )
+                if self.resample_seconds > 1:
+                    candles = resample_candles(candles, self.resample_seconds)
+                trades = self._run_symbol(candles, opt_type, strike, expiry)
+
+                if opt_type == "CE":
+                    week_result.ce_trades = trades
+                else:
+                    week_result.pe_trades = trades
+
+                if self.print_resampled:
+                    self._print_resampled_with_trades(
+                        candles, trades, strike, opt_type, expiry
+                    )
+
+                print(f"    {opt_type}: {len(trades)} trades")
             except Exception as exc:
-                print(f"  [{expiry}] Could not get Nifty open for {monday}: {exc}")
+                print(f"    [{opt_type}] Error: {exc}")
+
+        return week_result
+
+    def _run_expiry_per_day(
+        self, expiry: date, win_start: date, win_end: date
+    ) -> WeeklyExpiryResult | None:
+        """
+        Per-day ATM mode: for each trading day in the expiry window, choose a
+        fresh ATM strike from that day's Nifty open and trade only that day.
+        Weekends and market holidays are skipped. Trades from every day are
+        accumulated into a single WeeklyExpiryResult for the expiry.
+        """
+        print(f"  Expiry {expiry}  |  per-day ATM")
+
+        # Use the expiry-day open as the representative figure for the result
+        # header; individual trades carry their own (per-day) strike.
+        week_result = WeeklyExpiryResult(
+            expiry_date=expiry,
+            atm_strike=0,
+            nifty_open=0.0,
+        )
+
+        days = self.nifty_service.trading_days(
+            win_start, win_end, self.market_holidays
+        )
+
+        for day in days:
+            try:
+                nifty_open = self.nifty_service.get_nifty_open(day)
+            except Exception as exc:
+                print(f"    [{day}] Could not get Nifty open: {exc}")
                 continue
 
             strike = NiftyOptionService.atm_strike(nifty_open)
+            if day == expiry:
+                week_result.atm_strike = strike
+                week_result.nifty_open = nifty_open
 
-            print(f"  Expiry {expiry}  |  Monday open {nifty_open:.2f}  |  ATM {strike}")
+            from_dt = datetime(day.year, day.month, day.day, 9, 15, 0)
+            to_dt   = datetime(day.year, day.month, day.day, 15, 30, 0)
 
-            week_result = WeeklyExpiryResult(
-                expiry_date=expiry,
-                atm_strike=strike,
-                nifty_open=nifty_open,
-            )
+            print(f"    {day}  |  open {nifty_open:.2f}  |  ATM {strike}")
 
-            from_dt = datetime(win_start.year, win_start.month, win_start.day, 9, 15, 0)
-            to_dt   = datetime(win_end.year,   win_end.month,   win_end.day,   15, 30, 0)
-
-            # In cache-only mode, first verify both legs are available in the
-            # cache; if any is missing, skip this expiry entirely.
+            # In cache-only mode, verify both legs are cached for this day;
+            # if any is missing, skip just this day.
             if self.cache_only:
                 missing = False
                 for opt_type in ("CE", "PE"):
@@ -553,7 +668,7 @@ class ADXOptionStrategy:
                         missing = True
                         break
                 if missing:
-                    print(f"    [cache-only] No cached data — skipping expiry {expiry}")
+                    print(f"      [cache-only] No cached data — skipping {day}")
                     continue
 
             for opt_type in ("CE", "PE"):
@@ -572,22 +687,20 @@ class ADXOptionStrategy:
                     trades = self._run_symbol(candles, opt_type, strike, expiry)
 
                     if opt_type == "CE":
-                        week_result.ce_trades = trades
+                        week_result.ce_trades.extend(trades)
                     else:
-                        week_result.pe_trades = trades
+                        week_result.pe_trades.extend(trades)
 
                     if self.print_resampled:
                         self._print_resampled_with_trades(
                             candles, trades, strike, opt_type, expiry
                         )
 
-                    print(f"    {opt_type}: {len(trades)} trades")
+                    print(f"      {opt_type}: {len(trades)} trades")
                 except Exception as exc:
-                    print(f"    [{opt_type}] Error: {exc}")
+                    print(f"      [{opt_type}] Error: {exc}")
 
-            expiry_results.append(week_result)
-
-        return expiry_results
+        return week_result
 
     # ── Reporting ─────────────────────────────────────────────────────────────
 
