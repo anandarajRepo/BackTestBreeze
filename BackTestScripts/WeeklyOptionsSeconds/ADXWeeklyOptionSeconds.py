@@ -31,6 +31,7 @@ Usage:
 """
 
 import os
+from datetime import date
 
 from breeze_connect import BreezeConnect
 from dotenv import load_dotenv
@@ -83,6 +84,28 @@ PRINT_RESAMPLED   = False
 # cache is fetched from the Breeze API via a historical-data request.
 CACHE_ONLY        = True
 
+# NSE market holidays for 2026. When a Tuesday weekly expiry falls on one of
+# these dates, the expiry is rolled back to the previous trading day (skipping
+# weekends and any further holidays).
+MARKET_HOLIDAYS = {
+    date(2026, 1, 26),   # Republic Day            (Monday)
+    date(2026, 3, 3),    # Holi                    (Tuesday)
+    date(2026, 3, 26),   # Shri Ram Navami         (Thursday)
+    date(2026, 3, 31),   # Shri Mahavir Jayanti    (Tuesday)
+    date(2026, 4, 3),    # Good Friday             (Friday)
+    date(2026, 4, 14),   # Dr. Ambedkar Jayanti    (Tuesday)
+    date(2026, 5, 1),    # Maharashtra Day         (Friday)
+    date(2026, 5, 28),   # Bakri Id (Eid-al-Adha)  (Thursday)
+    date(2026, 6, 26),   # Moharram                (Friday)
+    date(2026, 8, 15),   # Independence Day        (Saturday)
+    date(2026, 9, 14),   # Ganesh Chaturthi        (Monday)
+    date(2026, 10, 2),   # Mahatma Gandhi Jayanti  (Friday)
+    date(2026, 11, 8),   # Diwali Laxmi Pujan      (Sunday)
+    date(2026, 11, 10),  # Diwali Balipratipada    (Tuesday)
+    date(2026, 11, 24),  # Guru Nanak Jayanti      (Tuesday)
+    date(2026, 12, 25),  # Christmas               (Friday)
+}
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -100,6 +123,7 @@ if __name__ == "__main__":
         resample_seconds=RESAMPLE_SECONDS,
         print_resampled=PRINT_RESAMPLED,
         cache_only=CACHE_ONLY,
+        market_holidays=MARKET_HOLIDAYS,
     )
 
     expiry_results = strategy.run_weekly_backtest()
