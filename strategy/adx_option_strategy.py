@@ -372,7 +372,7 @@ class ADXOptionStrategy:
                 # average volume. If the filter is disabled (factor <= 0) or no
                 # volume benchmark is available yet, this gate passes.
                 if self.volume_factor <= 0 or pd.isna(vol_avg) or vol_avg <= 0:
-                    volume_ok = True
+                    volume_ok = False
                 else:
                     volume_ok = volume >= self.volume_factor * vol_avg
 
@@ -382,10 +382,10 @@ class ADXOptionStrategy:
                     # DI+ crosses above DI-
                     signal = (prev_di_plus <= prev_di_minus) and (di_plus > di_minus)
                 elif option_type == "PE":
-                    # DI- crosses above DI+
-                    signal = (prev_di_minus <= prev_di_plus) and (di_minus > di_plus)
+                    # DI+ crosses above DI-
+                    signal = (prev_di_plus <= prev_di_minus) and (di_plus > di_minus)
 
-                if adx_ok and volume_ok and signal and price > 0:
+                if adx_ok and signal and price > 0:
                     entry_price       = price
                     alloc_pct         = _capital_allocation_pct(entry_price)
                     allocated_capital = self.capital * alloc_pct
