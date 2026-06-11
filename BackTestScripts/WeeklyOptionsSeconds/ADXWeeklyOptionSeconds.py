@@ -84,6 +84,13 @@ PRINT_RESAMPLED   = False
 # cache is fetched from the Breeze API via a historical-data request.
 CACHE_ONLY        = True
 
+# When True, a fresh ATM strike is chosen for EACH trading day from that day's
+# Nifty 9:15 open (weekends and market holidays are skipped automatically), and
+# each day is traded independently against its own ATM option contract.
+# When False (default), a single ATM strike is anchored to the week's Monday
+# open and traded across the whole expiry window.
+PER_DAY_ATM       = False
+
 # NSE market holidays for 2026. When a Tuesday weekly expiry falls on one of
 # these dates, the expiry is rolled back to the previous trading day (skipping
 # weekends and any further holidays).
@@ -124,6 +131,7 @@ if __name__ == "__main__":
         print_resampled=PRINT_RESAMPLED,
         cache_only=CACHE_ONLY,
         market_holidays=MARKET_HOLIDAYS,
+        per_day_atm=PER_DAY_ATM,
     )
 
     expiry_results = strategy.run_weekly_backtest()
