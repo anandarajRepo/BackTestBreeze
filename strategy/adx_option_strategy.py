@@ -10,6 +10,7 @@ Entry rules:
 
 Exit rules:
   - DI direction reversal (crossover flips)
+  - Trailing stop-loss (optional, percentage-based)
   - Square-off at 15:20 IST
   - Max 5 trades per day per symbol
   - No new entries before 9:30 or after 14:45
@@ -236,6 +237,8 @@ class ADXOptionStrategy:
         cache_only: bool = False,
         market_holidays: set[date] | None = None,
         per_day_atm: bool = False,
+        trailing_stop_enabled: bool = False,
+        trailing_stop_pct: float = 0.0,
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -262,6 +265,14 @@ class ADXOptionStrategy:
         # anchoring a single ATM strike for the whole expiry week to the Monday
         # open.
         self.per_day_atm      = per_day_atm
+        # Trailing stop-loss. When enabled, the strategy tracks the highest
+        # option price (peak) reached since entry and exits the position if the
+        # price falls back by `trailing_stop_pct` percent from that peak.
+        # e.g. trailing_stop_pct = 20.0 exits when price drops 20% below the
+        # highest price seen while in the trade. The stop only ratchets up as
+        # the peak rises; it never loosens. Set enabled=False to disable.
+        self.trailing_stop_enabled = trailing_stop_enabled
+        self.trailing_stop_pct     = trailing_stop_pct
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -290,6 +301,7 @@ class ADXOptionStrategy:
         entry_row     = None
         entry_price   = 0.0
         shares        = 0
+        peak_price    = 0.0   # highest price seen since entry (for trailing stop)
 
         prev_di_plus  = None
         prev_di_minus = None
@@ -315,9 +327,23 @@ class ADXOptionStrategy:
             if in_position:
                 exit_reason = None
 
+                # Update the running peak price (used by the trailing stop).
+                if price > peak_price:
+                    peak_price = price
+
                 # Square-off at 15:20
                 if t >= _SQUARE_OFF:
                     exit_reason = "SQUARE_OFF"
+
+                # Trailing stop-loss: exit if price falls `trailing_stop_pct`
+                # percent below the highest price reached since entry.
+                elif (
+                    self.trailing_stop_enabled
+                    and self.trailing_stop_pct > 0
+                    and peak_price > 0
+                    and price <= peak_price * (1 - self.trailing_stop_pct / 100.0)
+                ):
+                    exit_reason = "TRAILING_STOP"
 
                 # ADX crossover reversal
                 elif option_type == "CE" and prev_di_plus is not None:
@@ -402,6 +428,7 @@ class ADXOptionStrategy:
                     shares            = max(floor(allocated_capital / entry_price), 1)
                     in_position       = True
                     entry_row         = row
+                    peak_price        = entry_price
                     daily_trade_count[today] += 1
 
             prev_di_plus  = di_plus

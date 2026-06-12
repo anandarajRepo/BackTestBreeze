@@ -9,11 +9,10 @@ Entry:
 
 Exit:
   - DI direction reversal (crossover flips)
+  - Trailing stop-loss (optional, percentage-based; see TRAILING_STOP_* config)
   - Square-off at 15:20 IST
   - No new entries before 9:30 or after 14:45
   - Max 5 trades per day per symbol
-
-Note: no stop-loss in this strategy.
 
 Usage:
   1. Set START_DATE / END_DATE to the desired backtest window (DD-Mon-YYYY).
@@ -64,6 +63,14 @@ ADX_THRESHOLD     = 24              # minimum ADX value required to enter a trad
 # DI crossover signal to be taken. 1.0 = at least average volume; >1.0 demands
 # an above-average ("good") volume surge. Set to 0 to disable the volume filter.
 VOLUME_FACTOR     = 1.0
+
+# Trailing stop-loss. When TRAILING_STOP_ENABLED is True, the position is
+# closed if the option price falls TRAILING_STOP_PCT percent below the highest
+# price reached since entry (the stop ratchets up with the peak, never down).
+# TRAILING_STOP_PCT is expressed as a percentage, e.g. 20.0 = 20%.
+# Set TRAILING_STOP_ENABLED to False to disable the trailing stop entirely.
+TRAILING_STOP_ENABLED = True
+TRAILING_STOP_PCT     = 20.0
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
@@ -132,6 +139,8 @@ if __name__ == "__main__":
         cache_only=CACHE_ONLY,
         market_holidays=MARKET_HOLIDAYS,
         per_day_atm=PER_DAY_ATM,
+        trailing_stop_enabled=TRAILING_STOP_ENABLED,
+        trailing_stop_pct=TRAILING_STOP_PCT,
     )
 
     expiry_results = strategy.run_weekly_backtest()
