@@ -23,6 +23,8 @@ Exit:
   - Stop-loss      : `stop_loss_pct` percent below entry (hard stop)
   - Trailing stop  : optional; ratchets up with the peak price and exits when the
                      price falls `trailing_stop_pct` percent below that peak
+  - Break-even stop: optional; once price moves `breakeven_trigger_pct` percent
+                     above entry, the stop-loss is moved up to the entry price
   - Square-off     : forced exit at 15:20 IST
   - No new entries before the opening range completes or after 14:45
   - Max `max_trades_per_day` entries per day per contract
@@ -125,6 +127,8 @@ class ORBOptionSecondsStrategy:
         per_day_atm: bool = False,
         trailing_stop_enabled: bool = False,
         trailing_stop_pct: float = 0.0,
+        breakeven_enabled: bool = False,
+        breakeven_trigger_pct: float = 5.0,
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -151,6 +155,11 @@ class ORBOptionSecondsStrategy:
         # and exits if the price falls `trailing_stop_pct` percent from that peak.
         self.trailing_stop_enabled = trailing_stop_enabled
         self.trailing_stop_pct     = trailing_stop_pct
+        # Break-even stop. Once the option price moves `breakeven_trigger_pct`
+        # percent above entry, the stop-loss is moved up to the entry price so the
+        # trade can no longer turn into a loss (locks in break-even).
+        self.breakeven_enabled     = breakeven_enabled
+        self.breakeven_trigger_pct = breakeven_trigger_pct
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -227,6 +236,7 @@ class ORBOptionSecondsStrategy:
         target      = 0.0
         stop_loss   = 0.0
         peak_price  = 0.0
+        moved_to_breakeven = False
         breakout_vol = 0.0
         vol_ratio    = 0.0
 
@@ -246,13 +256,24 @@ class ORBOptionSecondsStrategy:
                 if high > peak_price:
                     peak_price = high
 
+                # Break-even: once price moves `breakeven_trigger_pct` above entry,
+                # ratchet the stop-loss up to the entry price (lock in break-even).
+                if (
+                    self.breakeven_enabled
+                    and not moved_to_breakeven
+                    and high >= entry_price * (1 + self.breakeven_trigger_pct / 100.0)
+                ):
+                    stop_loss = entry_price
+                    moved_to_breakeven = True
+
                 # Square-off at 15:20
                 if t >= _SQUARE_OFF:
                     exit_reason = "SQUARE_OFF"
                     exit_price  = close
-                # Hard stop-loss (checked before target)
+                # Hard stop-loss (checked before target). After the stop has been
+                # moved to entry, a hit is a break-even exit rather than a loss.
                 elif low <= stop_loss:
-                    exit_reason = "STOP_LOSS"
+                    exit_reason = "BREAKEVEN" if moved_to_breakeven else "STOP_LOSS"
                     exit_price  = stop_loss
                 # Trailing stop-loss
                 elif (
@@ -317,6 +338,7 @@ class ORBOptionSecondsStrategy:
                     alloc_pct   = _capital_allocation_pct(entry_price)
                     shares      = max(floor(self.capital * alloc_pct / entry_price), 1)
                     peak_price  = entry_price
+                    moved_to_breakeven = False
                     breakout_vol = volume
                     vol_ratio    = volume / orb_avg_vol if orb_avg_vol > 0 else 0.0
                     in_position  = True
