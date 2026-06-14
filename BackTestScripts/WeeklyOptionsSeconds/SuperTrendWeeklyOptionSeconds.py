@@ -51,7 +51,7 @@ print("Session Generated Successfully\n")
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE          = "02-Jun-2026"   # format: DD-Mon-YYYY
+END_DATE          = "09-Jun-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
 
@@ -64,26 +64,26 @@ ST_MULTIPLIER     = 3.0             # ATR multiplier for the Supertrend bands
 #   • 25% of position sold at 0.25 × TARGET_PCT gain
 #   • 25% of position sold at 0.50 × TARGET_PCT gain
 #   • remaining 50% sold at the full TARGET_PCT gain
-TARGET_PCT        = 40.0
+TARGET_PCT        = 15.0
 
 # Trailing stop-loss. When enabled, the remaining position is closed if the
 # option price falls TRAILING_STOP_PCT percent below the highest price reached
 # since entry (the stop ratchets up with the peak, never down).
 TRAILING_STOP_ENABLED = True
-TRAILING_STOP_PCT     = 20.0
+TRAILING_STOP_PCT     = 3.0
 
 # Breakeven trigger. Once the option price gains BREAKEVEN_TRIGGER_PCT percent,
 # the stop is raised to the entry price so the trade can no longer turn into a
 # loss. Set BREAKEVEN_TRIGGER_ENABLED to False to disable.
 BREAKEVEN_TRIGGER_ENABLED = True
-BREAKEVEN_TRIGGER_PCT     = 10.0
+BREAKEVEN_TRIGGER_PCT     = 3.0
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
 
 # Candle size (in seconds) used for the strategy. Set to 1 to use raw 1-second
 # bars without any resampling.
-RESAMPLE_SECONDS  = 5
+RESAMPLE_SECONDS  = 60
 
 # Print the final resampled DataFrame (with Supertrend) alongside the trades.
 PRINT_RESAMPLED   = False
@@ -95,7 +95,7 @@ CACHE_ONLY        = True
 # When True, a fresh ATM strike is chosen for EACH trading day from that day's
 # Nifty 9:15 open. When False, a single ATM strike is anchored to the week's
 # Monday open and traded across the whole expiry window.
-PER_DAY_ATM       = False
+PER_DAY_ATM       = True
 
 # NSE market holidays for 2026. When a Tuesday weekly expiry falls on one of
 # these dates, the expiry is rolled back to the previous trading day.
