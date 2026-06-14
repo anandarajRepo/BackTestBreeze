@@ -10,6 +10,8 @@ Entry:
 Exit:
   - SMA crossover reversal (fast SMA crosses back below the slow SMA)
   - Trailing stop-loss (optional, percentage-based; see TRAILING_STOP_* config)
+  - Break-even stop: once price moves BREAKEVEN_TRIGGER_PCT percent above entry,
+    the stop-loss is moved up to the entry price (see BREAKEVEN_* config)
   - Square-off at 15:20 IST
   - No new entries before 9:30 or after 14:45
   - Max 5 trades per day per symbol
@@ -72,6 +74,12 @@ VOLUME_FACTOR     = 1.0
 # price reached since entry (the stop ratchets up with the peak, never down).
 TRAILING_STOP_ENABLED = True
 TRAILING_STOP_PCT     = 20.0
+
+# Break-even stop. When enabled, once the option price moves
+# BREAKEVEN_TRIGGER_PCT percent above the entry price, the stop-loss is moved up
+# to the entry price so the trade can no longer turn into a loss.
+BREAKEVEN_ENABLED     = True
+BREAKEVEN_TRIGGER_PCT = 5.0
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
@@ -136,6 +144,8 @@ if __name__ == "__main__":
         per_day_atm=PER_DAY_ATM,
         trailing_stop_enabled=TRAILING_STOP_ENABLED,
         trailing_stop_pct=TRAILING_STOP_PCT,
+        breakeven_enabled=BREAKEVEN_ENABLED,
+        breakeven_trigger_pct=BREAKEVEN_TRIGGER_PCT,
     )
 
     expiry_results = strategy.run_weekly_backtest()

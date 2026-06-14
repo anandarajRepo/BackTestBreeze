@@ -11,6 +11,8 @@ Entry rules:
 Exit rules:
   - SMA crossover reversal (fast SMA crosses back below the slow SMA)
   - Trailing stop-loss (optional, percentage-based)
+  - Break-even stop: optional; once price moves `breakeven_trigger_pct` percent
+    above entry, the stop-loss is moved up to the entry price
   - Square-off at 15:20 IST
   - Max 5 trades per day per symbol
   - No new entries before 9:30 or after 14:45
@@ -189,6 +191,8 @@ class SMAOptionStrategy:
         per_day_atm: bool = False,
         trailing_stop_enabled: bool = False,
         trailing_stop_pct: float = 0.0,
+        breakeven_enabled: bool = False,
+        breakeven_trigger_pct: float = 5.0,
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -209,6 +213,11 @@ class SMAOptionStrategy:
         self.per_day_atm      = per_day_atm
         self.trailing_stop_enabled = trailing_stop_enabled
         self.trailing_stop_pct     = trailing_stop_pct
+        # Break-even stop. Once the option price moves `breakeven_trigger_pct`
+        # percent above entry, the stop-loss is moved up to the entry price so the
+        # trade can no longer turn into a loss (locks in break-even).
+        self.breakeven_enabled     = breakeven_enabled
+        self.breakeven_trigger_pct = breakeven_trigger_pct
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -237,6 +246,8 @@ class SMAOptionStrategy:
         entry_price   = 0.0
         shares        = 0
         peak_price    = 0.0   # highest price seen since entry (for trailing stop)
+        breakeven_stop = 0.0  # stop-loss level once moved to break-even
+        moved_to_breakeven = False
 
         prev_fast = None
         prev_slow = None
@@ -264,9 +275,24 @@ class SMAOptionStrategy:
                 if price > peak_price:
                     peak_price = price
 
+                # Break-even: once price moves `breakeven_trigger_pct` above entry,
+                # ratchet the stop-loss up to the entry price (lock in break-even).
+                if (
+                    self.breakeven_enabled
+                    and not moved_to_breakeven
+                    and price >= entry_price * (1 + self.breakeven_trigger_pct / 100.0)
+                ):
+                    breakeven_stop = entry_price
+                    moved_to_breakeven = True
+
                 # Square-off at 15:20
                 if t >= _SQUARE_OFF:
                     exit_reason = "SQUARE_OFF"
+
+                # Break-even stop: after the stop has been moved to entry, a fall
+                # back to the entry price exits the trade flat instead of at a loss.
+                elif moved_to_breakeven and price <= breakeven_stop:
+                    exit_reason = "BREAKEVEN"
 
                 # Trailing stop-loss
                 elif (
@@ -337,6 +363,8 @@ class SMAOptionStrategy:
                     in_position       = True
                     entry_row         = row
                     peak_price        = entry_price
+                    breakeven_stop    = 0.0
+                    moved_to_breakeven = False
                     daily_trade_count[today] += 1
 
             prev_fast = sma_fast
