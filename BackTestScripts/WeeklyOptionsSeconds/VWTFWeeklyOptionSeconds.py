@@ -62,7 +62,7 @@ EMA_PERIOD        = 21              # lookback period for the trend EMA
 # VOLUME_FACTOR times the rolling-average volume (over EMA_PERIOD bars) for the
 # trend signal to be taken. 1.0 = at least average volume; >1.0 demands an
 # above-average ("good") volume surge. Set to 0 to disable the volume filter.
-VOLUME_FACTOR     = 1.0
+VOLUME_FACTOR     = 3.0
 
 # Profit target as a percentage above the entry price. The position is scaled
 # out in three legs: 25% of the position once price reaches 25% of TARGET_PCT,
@@ -75,13 +75,13 @@ TARGET_PCT        = 40.0
 # option price falls TRAILING_STOP_PCT percent below the highest price reached
 # since entry (the stop ratchets up with the peak, never down).
 TRAILING_STOP_ENABLED = True
-TRAILING_STOP_PCT     = 20.0
+TRAILING_STOP_PCT     = 5.0
 
 # Break-even stop. When enabled, once the option price moves
 # BREAKEVEN_TRIGGER_PCT percent above entry, the stop-loss is moved up to the
 # entry price so the remaining position can no longer turn into a loss.
 BREAKEVEN_ENABLED     = True
-BREAKEVEN_TRIGGER_PCT = 10.0
+BREAKEVEN_TRIGGER_PCT = 5.0
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
@@ -101,7 +101,7 @@ CACHE_ONLY        = True
 # When True, a fresh ATM strike is chosen for EACH trading day from that day's
 # Nifty 9:15 open. When False (default), a single ATM strike is anchored to the
 # week's Monday open and traded across the whole expiry window.
-PER_DAY_ATM       = False
+PER_DAY_ATM       = True
 
 # NSE market holidays for 2026. When a Tuesday weekly expiry falls on one of
 # these dates, the expiry is rolled back to the previous trading day.
