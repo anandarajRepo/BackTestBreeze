@@ -57,19 +57,19 @@ print("Session Generated Successfully\n")
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE          = "02-Jun-2026"   # format: DD-Mon-YYYY
+END_DATE          = "09-Jun-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
 
 # Opening range length, in minutes from 9:15. The first ORB_MINUTES of each day
 # define the breakout high/low and the average volume benchmark.
-ORB_MINUTES       = 15
+ORB_MINUTES       = 240
 
 # Volume confirmation for breakouts. The breakout candle's volume must be at
 # least VOLUME_FACTOR times the average opening-range volume for the breakout to
 # be taken. 1.0 = at least average volume; >1.0 demands a "good"/surging volume
 # breakout. Set to 0 to disable the volume filter.
-VOLUME_FACTOR     = 1.5
+VOLUME_FACTOR     = 3.0
 
 # Hard stop-loss as a percentage below the entry price, and target as a multiple
 # of the stop distance (risk:reward).
@@ -83,7 +83,7 @@ MAX_TRADES_PER_DAY = 5
 # falls TRAILING_STOP_PCT percent below the highest price reached since entry
 # (the stop ratchets up with the peak, never down).
 TRAILING_STOP_ENABLED = True
-TRAILING_STOP_PCT     = 20.0
+TRAILING_STOP_PCT     = 10.0
 
 # Break-even stop. When enabled, once the option price moves
 # BREAKEVEN_TRIGGER_PCT percent above the entry price, the stop-loss is moved up
@@ -107,7 +107,7 @@ CACHE_ONLY        = True
 # When True, a fresh ATM strike is chosen for EACH trading day from that day's
 # Nifty 9:15 open. When False, a single ATM strike anchored to the week's Monday
 # open is traded across the whole expiry window.
-PER_DAY_ATM       = False
+PER_DAY_ATM       = True
 
 # NSE market holidays for 2026. When a Tuesday weekly expiry falls on one of
 # these dates, the expiry is rolled back to the previous trading day.
