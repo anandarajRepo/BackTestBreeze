@@ -40,6 +40,7 @@ Usage:
 import os
 from datetime import date
 
+import pandas as pd
 from breeze_connect import BreezeConnect
 from dotenv import load_dotenv
 
@@ -182,3 +183,50 @@ if __name__ == "__main__":
 
     expiry_results = strategy.run_weekly_backtest()
     ORBOptionSecondsStrategy.print_report(expiry_results)
+
+    # ── Trades DataFrame with open range and open-range percentage ─────────────
+    # The open range is the width of the opening range (ORB high − ORB low) for the
+    # day on which the trade was taken. The open-range percentage expresses that
+    # width relative to the ORB low, i.e. (ORB high − ORB low) / ORB low × 100.
+    all_trades = [t for er in expiry_results for t in er.all_trades]
+
+    if all_trades:
+        rows = []
+        for t in sorted(all_trades, key=lambda x: x.entry_time):
+            open_range = round(t.orb_high - t.orb_low, 2)
+            open_range_pct = (
+                round(open_range / t.orb_low * 100, 2) if t.orb_low else 0.0
+            )
+            rows.append({
+                "symbol":         t.symbol,
+                "option_type":    t.option_type,
+                "strike":         t.strike,
+                "expiry_date":    t.expiry_date,
+                "entry_time":     t.entry_time,
+                "exit_time":      t.exit_time,
+                "entry_price":    t.entry_price,
+                "exit_price":     t.exit_price,
+                "shares":         t.shares,
+                "pnl":            t.pnl,
+                "exit_reason":    t.exit_reason,
+                "orb_high":       t.orb_high,
+                "orb_low":        t.orb_low,
+                "open_range":     open_range,
+                "open_range_pct": open_range_pct,
+                "volume_ratio":   t.volume_ratio,
+                "duration_minutes": t.duration_minutes,
+            })
+
+        trades_df = pd.DataFrame(rows)
+
+        print(f"\n{'='*90}")
+        print("  TRADES WITH OPEN RANGE & OPEN-RANGE PERCENTAGE")
+        print(f"{'='*90}")
+        with pd.option_context(
+            "display.max_rows", None,
+            "display.max_columns", None,
+            "display.width", None,
+        ):
+            print(trades_df.to_string(index=False))
+    else:
+        print("\n  No trades to display in DataFrame.")
