@@ -72,7 +72,7 @@ ORB_MINUTES       = 240
 # least VOLUME_FACTOR times the average opening-range volume for the breakout to
 # be taken. 1.0 = at least average volume; >1.0 demands a "good"/surging volume
 # breakout. Set to 0 to disable the volume filter.
-VOLUME_FACTOR     = 3.0
+VOLUME_FACTOR     = 5.0
 
 # Hard stop-loss as a percentage below the entry price, and target as a multiple
 # of the stop distance (risk:reward).
@@ -86,7 +86,7 @@ MAX_TRADES_PER_DAY = 5
 # falls TRAILING_STOP_PCT percent below the highest price reached since entry
 # (the stop ratchets up with the peak, never down).
 TRAILING_STOP_ENABLED = True
-TRAILING_STOP_PCT     = 10.0
+TRAILING_STOP_PCT     = 5.0
 
 # Break-even stop. When enabled, once the option price moves
 # BREAKEVEN_TRIGGER_PCT percent above the entry price, the stop-loss is moved up
@@ -109,7 +109,7 @@ BREAKEVEN_PARTIAL_BOOK_ENABLED = True
 # for within the last FVG_LOOKBACK candles up to (and including) the breakout
 # candle. Set FVG_CONFIRMATION_ENABLED = False to disable this filter.
 FVG_CONFIRMATION_ENABLED = True
-FVG_LOOKBACK             = 3
+FVG_LOOKBACK             = 24
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
