@@ -18,6 +18,13 @@ Entry (long option only):
   bearish on the index). A close back below the ORB low is treated as a failed
   range and no short is taken (you cannot "sell" a long-only option backtest).
 
+  Fair Value Gap confirmation (optional):
+    When `fvg_confirmation_enabled` is True, a breakout is only taken if a bullish
+    Fair Value Gap is present within the last `fvg_lookback` candles. A bullish
+    FVG is a 3-candle imbalance where the most recent candle's low is strictly
+    above the high of the candle two bars earlier (low[i] > high[i-2]), leaving an
+    unfilled gap that confirms strong upward momentum behind the breakout.
+
 Exit:
   - Target        : entry + risk * risk_reward_ratio, where risk = stop distance
   - Stop-loss      : `stop_loss_pct` percent below entry (hard stop)
@@ -131,6 +138,8 @@ class ORBOptionSecondsStrategy:
         trailing_stop_pct: float = 0.0,
         breakeven_enabled: bool = False,
         breakeven_trigger_pct: float = 5.0,
+        fvg_confirmation_enabled: bool = False,
+        fvg_lookback: int = 3,
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -162,6 +171,35 @@ class ORBOptionSecondsStrategy:
         # trade can no longer turn into a loss (locks in break-even).
         self.breakeven_enabled     = breakeven_enabled
         self.breakeven_trigger_pct = breakeven_trigger_pct
+        # Fair Value Gap (FVG) entry confirmation. When enabled, a breakout entry
+        # is only taken if a bullish FVG (a 3-candle imbalance where the most
+        # recent candle's low is strictly above the high of the candle two bars
+        # earlier) is present within the last `fvg_lookback` candles up to and
+        # including the breakout candle.
+        self.fvg_confirmation_enabled = fvg_confirmation_enabled
+        self.fvg_lookback             = max(int(fvg_lookback), 3)
+
+    @staticmethod
+    def _has_bullish_fvg(highs: list[float], lows: list[float], lookback: int) -> bool:
+        """
+        Return True if a bullish Fair Value Gap is present within the last
+        `lookback` candles of the supplied high/low series.
+
+        A bullish FVG is a 3-candle imbalance: for some triple (i-2, i-1, i) the
+        low of the most recent candle is strictly above the high of the candle two
+        bars earlier — i.e. low[i] > high[i-2]. This leaves an unfilled price gap
+        spanning candle i-1, signalling strong upward momentum.
+        """
+        n = len(highs)
+        if n < 3:
+            return False
+        # Only inspect FVGs whose most-recent candle falls inside the lookback
+        # window ending at the latest candle.
+        start = max(2, n - lookback)
+        for i in range(start, n):
+            if lows[i] > highs[i - 2]:
+                return True
+        return False
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -242,6 +280,11 @@ class ORBOptionSecondsStrategy:
         breakout_vol = 0.0
         vol_ratio    = 0.0
 
+        # Rolling high/low history of post-ORB candles, used to detect a bullish
+        # Fair Value Gap when FVG entry confirmation is enabled.
+        recent_highs: list[float] = []
+        recent_lows:  list[float] = []
+
         for _, row in post_df.iterrows():
             dt: datetime = row["datetime"]
             t: time      = dt.time()
@@ -249,6 +292,10 @@ class ORBOptionSecondsStrategy:
             low   = float(row["low"])
             close = float(row["close"])
             volume = float(row["volume"])
+
+            # Track candle highs/lows for Fair Value Gap detection.
+            recent_highs.append(high)
+            recent_lows.append(low)
 
             # ── Exit logic ────────────────────────────────────────────────
             if in_position:
@@ -364,7 +411,15 @@ class ORBOptionSecondsStrategy:
                 # Upside breakout: candle closes above the opening-range high.
                 breakout = close > orb_high
 
-                if breakout and volume_ok and close > 0:
+                # Fair Value Gap confirmation: require a recent bullish FVG.
+                if self.fvg_confirmation_enabled:
+                    fvg_ok = self._has_bullish_fvg(
+                        recent_highs, recent_lows, self.fvg_lookback
+                    )
+                else:
+                    fvg_ok = True
+
+                if breakout and volume_ok and fvg_ok and close > 0:
                     entry_price = close
                     stop_loss   = round(entry_price * (1 - self.stop_loss_pct / 100.0), 2)
                     risk        = entry_price - stop_loss
