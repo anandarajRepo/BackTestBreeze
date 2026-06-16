@@ -92,6 +92,16 @@ TRAILING_STOP_PCT     = 10.0
 BREAKEVEN_ENABLED     = True
 BREAKEVEN_TRIGGER_PCT = 5.0
 
+# Fair Value Gap (FVG) entry confirmation. When enabled, a breakout entry is only
+# taken if a *bullish* Fair Value Gap is present in the recent candles. A bullish
+# FVG is a 3-candle imbalance where the low of the most recent candle is strictly
+# above the high of the candle two bars earlier (candle[i].low > candle[i-2].high),
+# leaving an unfilled gap that signals strong upward momentum. The gap is searched
+# for within the last FVG_LOOKBACK candles up to (and including) the breakout
+# candle. Set FVG_CONFIRMATION_ENABLED = False to disable this filter.
+FVG_CONFIRMATION_ENABLED = True
+FVG_LOOKBACK             = 3
+
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
 
@@ -156,6 +166,8 @@ if __name__ == "__main__":
         trailing_stop_pct=TRAILING_STOP_PCT,
         breakeven_enabled=BREAKEVEN_ENABLED,
         breakeven_trigger_pct=BREAKEVEN_TRIGGER_PCT,
+        fvg_confirmation_enabled=FVG_CONFIRMATION_ENABLED,
+        fvg_lookback=FVG_LOOKBACK,
     )
 
     expiry_results = strategy.run_weekly_backtest()
