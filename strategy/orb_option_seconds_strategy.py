@@ -24,7 +24,9 @@ Exit:
   - Trailing stop  : optional; ratchets up with the peak price and exits when the
                      price falls `trailing_stop_pct` percent below that peak
   - Break-even stop: optional; once price moves `breakeven_trigger_pct` percent
-                     above entry, the stop-loss is moved up to the entry price
+                     above entry, the stop-loss is moved up to the entry price,
+                     and 50% of the position is booked while the remaining 50%
+                     continues to run
   - Square-off     : forced exit at 15:20 IST
   - No new entries before the opening range completes or after 14:45
   - Max `max_trades_per_day` entries per day per contract
@@ -257,7 +259,8 @@ class ORBOptionSecondsStrategy:
                     peak_price = high
 
                 # Break-even: once price moves `breakeven_trigger_pct` above entry,
-                # ratchet the stop-loss up to the entry price (lock in break-even).
+                # ratchet the stop-loss up to the entry price (lock in break-even)
+                # AND book 50% of the position, letting the rest ride on.
                 if (
                     self.breakeven_enabled
                     and not moved_to_breakeven
@@ -265,6 +268,37 @@ class ORBOptionSecondsStrategy:
                 ):
                     stop_loss = entry_price
                     moved_to_breakeven = True
+
+                    # Book half the position at the break-even trigger level and
+                    # continue holding the remaining half.
+                    book_price  = round(
+                        entry_price * (1 + self.breakeven_trigger_pct / 100.0), 2
+                    )
+                    half_shares = shares // 2
+                    if half_shares >= 1:
+                        duration = int((dt - entry_dt).total_seconds() / 60)
+                        pnl      = round(half_shares * (book_price - entry_price), 2)
+                        trades.append(ORBSecondsTradeResult(
+                            symbol=symbol_label,
+                            option_type=option_type,
+                            strike=strike,
+                            expiry_date=expiry_date,
+                            entry_time=entry_dt,
+                            exit_time=dt,
+                            entry_price=entry_price,
+                            exit_price=book_price,
+                            shares=half_shares,
+                            pnl=pnl,
+                            exit_reason="PARTIAL_BOOK",
+                            orb_high=orb_high,
+                            orb_low=orb_low,
+                            breakout_volume=breakout_vol,
+                            orb_avg_volume=round(orb_avg_vol, 2),
+                            volume_ratio=round(vol_ratio, 2),
+                            duration_minutes=duration,
+                        ))
+                        # Continue the position with the remaining shares only.
+                        shares -= half_shares
 
                 # Square-off at 15:20
                 if t >= _SQUARE_OFF:
