@@ -31,9 +31,11 @@ Exit:
   - Trailing stop  : optional; ratchets up with the peak price and exits when the
                      price falls `trailing_stop_pct` percent below that peak
   - Break-even stop: optional; once price moves `breakeven_trigger_pct` percent
-                     above entry, the stop-loss is moved up to the entry price,
-                     and 50% of the position is booked while the remaining 50%
-                     continues to run
+                     above entry, the stop-loss is moved up to the entry price.
+                     When `breakeven_partial_book_enabled` is True, 50% of the
+                     position is also booked while the remaining 50% continues to
+                     run; when False, the full position is held on with the stop
+                     at break-even
   - Square-off     : forced exit at 15:20 IST
   - No new entries before the opening range completes or after 14:45
   - Max `max_trades_per_day` entries per day per contract
@@ -138,6 +140,7 @@ class ORBOptionSecondsStrategy:
         trailing_stop_pct: float = 0.0,
         breakeven_enabled: bool = False,
         breakeven_trigger_pct: float = 5.0,
+        breakeven_partial_book_enabled: bool = True,
         fvg_confirmation_enabled: bool = False,
         fvg_lookback: int = 3,
     ):
@@ -171,6 +174,11 @@ class ORBOptionSecondsStrategy:
         # trade can no longer turn into a loss (locks in break-even).
         self.breakeven_enabled     = breakeven_enabled
         self.breakeven_trigger_pct = breakeven_trigger_pct
+        # Partial profit booking at break-even. When enabled (the default), 50% of
+        # the position is booked at the moment the stop is moved to break-even,
+        # while the remaining 50% continues to run. When disabled, the stop is
+        # still moved up to the entry price but the full position is held on.
+        self.breakeven_partial_book_enabled = breakeven_partial_book_enabled
         # Fair Value Gap (FVG) entry confirmation. When enabled, a breakout entry
         # is only taken if a bullish FVG (a 3-candle imbalance where the most
         # recent candle's low is strictly above the high of the candle two bars
@@ -317,12 +325,13 @@ class ORBOptionSecondsStrategy:
                     moved_to_breakeven = True
 
                     # Book half the position at the break-even trigger level and
-                    # continue holding the remaining half.
+                    # continue holding the remaining half (only when partial
+                    # booking is enabled).
                     book_price  = round(
                         entry_price * (1 + self.breakeven_trigger_pct / 100.0), 2
                     )
                     half_shares = shares // 2
-                    if half_shares >= 1:
+                    if self.breakeven_partial_book_enabled and half_shares >= 1:
                         duration = int((dt - entry_dt).total_seconds() / 60)
                         pnl      = round(half_shares * (book_price - entry_price), 2)
                         trades.append(ORBSecondsTradeResult(
