@@ -20,8 +20,10 @@ Exit:
   - Stop-loss: STOP_LOSS_PCT percent below entry
   - Trailing stop-loss (optional; see TRAILING_STOP_* config)
   - Break-even stop: once price moves BREAKEVEN_TRIGGER_PCT percent above entry,
-    the stop-loss is moved up to the entry price and 50% of the position is
-    booked, while the remaining 50% continues to run (see BREAKEVEN_* config)
+    the stop-loss is moved up to the entry price. When
+    BREAKEVEN_PARTIAL_BOOK_ENABLED is True, 50% of the position is also booked
+    while the remaining 50% continues to run; when False, the full position is
+    held on with the stop at break-even (see BREAKEVEN_* config)
   - Square-off at 15:20 IST
   - No new entries before the opening range completes or after 14:45
   - Max MAX_TRADES_PER_DAY trades per day per symbol
@@ -91,6 +93,13 @@ TRAILING_STOP_PCT     = 10.0
 # to the entry price so the trade can no longer turn into a loss.
 BREAKEVEN_ENABLED     = True
 BREAKEVEN_TRIGGER_PCT = 5.0
+
+# Partial profit booking at break-even. When True, 50% of the position is booked
+# at the moment the stop-loss is moved up to the entry price, while the remaining
+# 50% continues to run. When False, the stop-loss is still moved to break-even but
+# the full position is held on (no partial booking). Only applies when
+# BREAKEVEN_ENABLED is True.
+BREAKEVEN_PARTIAL_BOOK_ENABLED = True
 
 # Fair Value Gap (FVG) entry confirmation. When enabled, a breakout entry is only
 # taken if a *bullish* Fair Value Gap is present in the recent candles. A bullish
@@ -166,6 +175,7 @@ if __name__ == "__main__":
         trailing_stop_pct=TRAILING_STOP_PCT,
         breakeven_enabled=BREAKEVEN_ENABLED,
         breakeven_trigger_pct=BREAKEVEN_TRIGGER_PCT,
+        breakeven_partial_book_enabled=BREAKEVEN_PARTIAL_BOOK_ENABLED,
         fvg_confirmation_enabled=FVG_CONFIRMATION_ENABLED,
         fvg_lookback=FVG_LOOKBACK,
     )
