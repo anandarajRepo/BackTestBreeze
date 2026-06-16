@@ -20,7 +20,8 @@ Exit:
   - Stop-loss: STOP_LOSS_PCT percent below entry
   - Trailing stop-loss (optional; see TRAILING_STOP_* config)
   - Break-even stop: once price moves BREAKEVEN_TRIGGER_PCT percent above entry,
-    the stop-loss is moved up to the entry price (see BREAKEVEN_* config)
+    the stop-loss is moved up to the entry price and 50% of the position is
+    booked, while the remaining 50% continues to run (see BREAKEVEN_* config)
   - Square-off at 15:20 IST
   - No new entries before the opening range completes or after 14:45
   - Max MAX_TRADES_PER_DAY trades per day per symbol
