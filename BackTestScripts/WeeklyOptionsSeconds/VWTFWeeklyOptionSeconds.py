@@ -53,7 +53,7 @@ print("Session Generated Successfully\n")
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE          = "09-May-2026"   # format: DD-Mon-YYYY
+END_DATE          = "16-Jun-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
 EMA_PERIOD        = 21              # lookback period for the trend EMA
@@ -88,7 +88,7 @@ INTERVAL          = "1second"
 
 # Candle size (in seconds) used for the strategy.
 # Set to 1 to use raw 1-second bars without any resampling.
-RESAMPLE_SECONDS  = 60
+RESAMPLE_SECONDS  = 120
 
 # Print the final resampled DataFrame (with indicators) alongside the trades for
 # each option contract before the summary report.
