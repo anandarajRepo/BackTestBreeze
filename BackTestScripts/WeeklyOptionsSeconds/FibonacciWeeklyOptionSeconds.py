@@ -118,14 +118,14 @@ BREAKEVEN_PARTIAL_BOOK_ENABLED = True
 INTERVAL          = "1second"
 
 # Candle size (in seconds) used for the strategy. Set to 1 for raw 1-second bars.
-RESAMPLE_SECONDS  = 5
+RESAMPLE_SECONDS  = 30
 
 # Print the final resampled DataFrame alongside the trades for each contract.
 PRINT_RESAMPLED   = False
 
 # When True, candle data is served ONLY from the local cache — no Breeze API
 # calls are made. Expiries whose data is not cached are skipped.
-CACHE_ONLY        = True
+CACHE_ONLY        = False
 
 # When True, a fresh ATM strike is chosen for EACH trading day from that day's
 # Nifty 9:15 open. When False, a single ATM strike anchored to the week's Monday
