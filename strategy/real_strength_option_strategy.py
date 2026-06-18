@@ -91,9 +91,19 @@ def compute_real_strength(
     # Rate of Change (%)
     df["roc"] = df["close"].pct_change(periods=roc_period) * 100
 
-    # Volume ratio
+    # Volume ratio.
+    # Nifty spot is an *index* (cash) series and Breeze returns volume == 0 for
+    # it, which makes vol_ma == 0 and the naive ratio 0/0 == NaN. A NaN vol_ratio
+    # propagates into rs_raw → histogram (NaN everywhere) and also fails the
+    # vol_ratio entry filter, so no trade can ever fire. When there is no volume
+    # to measure, treat the ratio as neutral (1.0) so the amplifier is a no-op
+    # and the histogram stays finite. Genuine low-volume bars within a series
+    # that *does* carry volume (vol_ma > 0) keep their real, sub-1.0 ratio.
     df["vol_ma"]    = df["volume"].rolling(vol_ma_period, min_periods=1).mean()
-    df["vol_ratio"] = (df["volume"] / df["vol_ma"]).clip(lower=0)
+    df["vol_ratio"] = np.where(
+        df["vol_ma"] > 0, df["volume"] / df["vol_ma"], 1.0
+    )
+    df["vol_ratio"] = pd.Series(df["vol_ratio"], index=df.index).clip(lower=0)
 
     # ADX scaled around 20 reference — at ADX=20 amplifier = 1.0
     df["adx_scaled"] = df["adx"] / 20.0
@@ -246,6 +256,12 @@ class RealStrengthOptionStrategy:
         # Re-entry lock: key = "CE"/"PE", cleared once histogram touches zero
         stop_locked: dict[str, bool] = {"CE": False, "PE": False}
 
+        # The volume filter is only meaningful when the signal series actually
+        # carries volume. Nifty spot (index/cash) has volume == 0 on every bar,
+        # so a hard vol_ratio_min would reject every entry. Detect that case once
+        # and treat the volume filter as satisfied for volumeless signals.
+        signal_has_volume = bool(signal_df["volume"].abs().sum() > 0)
+
         prev_hist = None
 
         rows = list(signal_df.itertuples(index=False))
@@ -368,7 +384,7 @@ class RealStrengthOptionStrategy:
                 and prev_hist is not None
                 and _ENTRY_START <= t <= _ENTRY_CUTOFF
                 and adx >= self.min_adx
-                and vol_ratio >= self.vol_ratio_min
+                and (not signal_has_volume or vol_ratio >= self.vol_ratio_min)
             ):
                 # Long → CE
                 long_signal = (
