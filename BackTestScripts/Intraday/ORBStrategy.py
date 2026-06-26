@@ -145,9 +145,9 @@ QUANTITY          = 1
 ORB_MINUTES       = 15       # Opening range period: 9:15–9:30 AM
 STOP_LOSS_PCT     = 1.5
 RISK_REWARD_RATIO = 2.0
-START_DATE        = "30-Apr-2026 9:15:00"
-END_DATE          = "30-Apr-2026 15:29:59"
-INTERVAL          = "1minute"
+START_DATE        = "19-Jun-2026 9:15:00"
+END_DATE          = "19-Jun-2026 15:29:59"
+INTERVAL          = "1minute" #1minute, 1second
 
 # ── Portfolio Selection ───────────────────────────────────────────────────────
 
