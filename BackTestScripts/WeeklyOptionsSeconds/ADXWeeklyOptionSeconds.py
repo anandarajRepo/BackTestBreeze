@@ -72,19 +72,25 @@ VOLUME_FACTOR     = 1.0
 TRAILING_STOP_ENABLED = True
 TRAILING_STOP_PCT     = 20.0
 
-# DI-difference confirmation filter.
-# When True, a raw DI crossover signal does NOT immediately open a position.
-# Instead the strategy waits 3 bars from the signal bar, accumulates
-# DI_difference = abs(DI+ - DI-) for each of those bars, and only enters on
-# the 3rd bar if that bar's DI_difference is GREATER THAN the 3-bar running
-# average (DI_difference_average). The average resets on every new crossover
-# signal so it always measures the momentum of the current setup.
-# Exit condition (when enabled): a running average of DI_difference is
-# maintained across every bar while in position (seeded with the entry bar's
-# value). The position closes as soon as the current bar's DI_difference drops
-# BELOW that live running average, indicating fading momentum.
-# Set to False to use the original immediate-entry behaviour.
-DI_DIFF_CONFIRM_ENABLED = False
+# DI-difference confirmation filter — entry and exit are toggled independently.
+#
+# DI_DIFF_CONFIRM_ENTRY_COND_ENABLED:
+#   When True, a raw DI crossover signal does NOT immediately open a position.
+#   Instead the strategy waits 3 bars from the signal bar, accumulates
+#   DI_difference = abs(DI+ - DI-) for each of those bars, and only enters on
+#   the 3rd bar if that bar's DI_difference is GREATER THAN the 3-bar running
+#   average (DI_difference_average). The average resets on every new crossover
+#   signal so it always measures the momentum of the current setup.
+#   Set to False to use the original immediate-entry behaviour.
+#
+# DI_DIFF_CONFIRM_EXIT_COND_ENABLED:
+#   When True, a running average of DI_difference is maintained across every
+#   bar while in position (seeded with the entry bar's value). The position
+#   closes as soon as the current bar's DI_difference drops BELOW that live
+#   running average, indicating fading momentum.
+#   Set to False to disable this exit condition.
+DI_DIFF_CONFIRM_ENTRY_COND_ENABLED = False
+DI_DIFF_CONFIRM_EXIT_COND_ENABLED  = False
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
@@ -155,7 +161,8 @@ if __name__ == "__main__":
         per_day_atm=PER_DAY_ATM,
         trailing_stop_enabled=TRAILING_STOP_ENABLED,
         trailing_stop_pct=TRAILING_STOP_PCT,
-        di_diff_confirm_enabled=DI_DIFF_CONFIRM_ENABLED,
+        di_diff_confirm_entry_cond_enabled=DI_DIFF_CONFIRM_ENTRY_COND_ENABLED,
+        di_diff_confirm_exit_cond_enabled=DI_DIFF_CONFIRM_EXIT_COND_ENABLED,
     )
 
     expiry_results = strategy.run_weekly_backtest()
