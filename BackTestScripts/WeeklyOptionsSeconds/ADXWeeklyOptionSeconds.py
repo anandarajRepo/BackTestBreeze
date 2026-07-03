@@ -10,6 +10,7 @@ Entry:
 Exit:
   - DI direction reversal (crossover flips)
   - Trailing stop-loss (optional, percentage-based; see TRAILING_STOP_* config)
+  - Break-even stop (optional; see BREAKEVEN_* config)
   - Square-off at 15:20 IST
   - No new entries before 9:30 or after 14:45
   - Max 5 trades per day per symbol
@@ -71,6 +72,12 @@ VOLUME_FACTOR     = 1.0
 # Set TRAILING_STOP_ENABLED to False to disable the trailing stop entirely.
 TRAILING_STOP_ENABLED = True
 TRAILING_STOP_PCT     = 20.0
+
+# Break-even stop. When enabled, once the option price moves
+# BREAKEVEN_TRIGGER_PCT percent above entry, the stop-loss is moved up to the
+# entry price so the remaining position can no longer turn into a loss.
+BREAKEVEN_ENABLED     = True
+BREAKEVEN_TRIGGER_PCT = 5.0
 
 # DI-difference confirmation filter — entry and exit are toggled independently.
 #
@@ -161,6 +168,8 @@ if __name__ == "__main__":
         per_day_atm=PER_DAY_ATM,
         trailing_stop_enabled=TRAILING_STOP_ENABLED,
         trailing_stop_pct=TRAILING_STOP_PCT,
+        breakeven_enabled=BREAKEVEN_ENABLED,
+        breakeven_trigger_pct=BREAKEVEN_TRIGGER_PCT,
         di_diff_confirm_entry_cond_enabled=DI_DIFF_CONFIRM_ENTRY_COND_ENABLED,
         di_diff_confirm_exit_cond_enabled=DI_DIFF_CONFIRM_EXIT_COND_ENABLED,
     )
