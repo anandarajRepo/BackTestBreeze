@@ -56,7 +56,7 @@ print("Session Generated Successfully\n")
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE          = "16-Jun-2026"   # format: DD-Mon-YYYY
+END_DATE          = "30-Jun-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # starting equity per contract
 
@@ -77,14 +77,14 @@ TRADING_DELAY_HOURS = 2.0
 
 # When False, upper-band touches (short the option premium) are ignored and
 # only lower-band LONG entries are taken.
-ALLOW_SHORT       = True
+ALLOW_SHORT       = False
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
 
 # Candle size (in seconds) used for the strategy.
 # Set to 1 to use raw 1-second bars without any resampling.
-RESAMPLE_SECONDS  = 120
+RESAMPLE_SECONDS  = 1
 
 # Print the final resampled DataFrame (with VWAP bands) alongside the trades
 # for each option contract before the summary report.
