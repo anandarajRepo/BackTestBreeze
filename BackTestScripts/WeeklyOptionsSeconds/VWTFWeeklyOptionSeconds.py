@@ -53,7 +53,7 @@ print("Session Generated Successfully\n")
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE          = "16-Jun-2026"   # format: DD-Mon-YYYY
+END_DATE          = "30-Jun-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
 EMA_PERIOD        = 21              # lookback period for the trend EMA
