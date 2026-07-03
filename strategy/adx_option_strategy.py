@@ -239,6 +239,7 @@ class ADXOptionStrategy:
         per_day_atm: bool = False,
         trailing_stop_enabled: bool = False,
         trailing_stop_pct: float = 0.0,
+        di_diff_confirm_enabled: bool = False,
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -271,8 +272,18 @@ class ADXOptionStrategy:
         # e.g. trailing_stop_pct = 20.0 exits when price drops 20% below the
         # highest price seen while in the trade. The stop only ratchets up as
         # the peak rises; it never loosens. Set enabled=False to disable.
-        self.trailing_stop_enabled = trailing_stop_enabled
-        self.trailing_stop_pct     = trailing_stop_pct
+        self.trailing_stop_enabled  = trailing_stop_enabled
+        self.trailing_stop_pct      = trailing_stop_pct
+        # DI-difference confirmation filter (toggle). When True, a raw crossover
+        # signal does NOT immediately trigger an entry. Instead the strategy waits
+        # 3 bars from the signal bar, accumulates DI_difference = abs(DI+ - DI-)
+        # for those 3 bars, and only enters on the 3rd bar if that bar's
+        # DI_difference is GREATER THAN the 3-bar average (DI_difference_average).
+        # The DI_difference_average resets at every new crossover signal so it
+        # always reflects the momentum of the current setup.
+        # Exit condition (when enabled): exit when DI_difference drops BELOW the
+        # DI_difference_average that was locked in at entry time.
+        self.di_diff_confirm_enabled = di_diff_confirm_enabled
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -306,6 +317,14 @@ class ADXOptionStrategy:
         prev_di_plus  = None
         prev_di_minus = None
 
+        # DI-difference confirmation state (used only when di_diff_confirm_enabled).
+        # pending_signal_bars: list of DI_difference values accumulated since the
+        # last crossover signal (resets on each new signal). Once 3 values are
+        # collected the confirmation check is attempted.
+        pending_signal_bars: list[float] = []
+        pending_signal_row  = None        # the row that originally fired the signal
+        di_diff_avg_at_entry = 0.0        # locked in at entry; used for the exit gate
+
         for _, row in indicators.iterrows():
             dt: datetime  = row["datetime"]
             t: time       = dt.time()
@@ -322,6 +341,8 @@ class ADXOptionStrategy:
                 prev_di_plus  = di_plus
                 prev_di_minus = di_minus
                 continue
+
+            di_difference = abs(di_plus - di_minus)
 
             # ── Exit logic (checked every bar while in position) ──────────
             if in_position:
@@ -344,6 +365,15 @@ class ADXOptionStrategy:
                     and price <= peak_price * (1 - self.trailing_stop_pct / 100.0)
                 ):
                     exit_reason = "TRAILING_STOP"
+
+                # DI-difference exit: when the confirmation filter is enabled,
+                # exit if DI_difference falls below the average locked at entry.
+                elif (
+                    self.di_diff_confirm_enabled
+                    and di_diff_avg_at_entry > 0
+                    and di_difference < di_diff_avg_at_entry
+                ):
+                    exit_reason = "DI_DIFF_BELOW_AVG"
 
                 # ADX crossover reversal
                 elif option_type == "CE" and prev_di_plus is not None:
@@ -381,8 +411,9 @@ class ADXOptionStrategy:
                         duration_minutes=duration,
                     ))
 
-                    in_position = False
-                    entry_row   = None
+                    in_position      = False
+                    entry_row        = None
+                    di_diff_avg_at_entry = 0.0
 
             # ── Entry logic ───────────────────────────────────────────────
             # Standard ADX/DI system:
@@ -418,18 +449,53 @@ class ADXOptionStrategy:
                     # DI+ crosses above DI-
                     signal = (prev_di_plus <= prev_di_minus) and (di_plus > di_minus)
                 elif option_type == "PE":
-                    # DI+ crosses above DI-
-                    signal = (prev_di_plus <= prev_di_minus) and (di_plus > di_minus)
+                    # DI- crosses above DI+
+                    signal = (prev_di_minus <= prev_di_plus) and (di_minus > di_plus)
 
                 if adx_ok and signal and price > 0:
-                    entry_price       = price
-                    alloc_pct         = _capital_allocation_pct(entry_price)
-                    allocated_capital = self.capital * alloc_pct
-                    shares            = max(floor(allocated_capital / entry_price), 1)
-                    in_position       = True
-                    entry_row         = row
-                    peak_price        = entry_price
-                    daily_trade_count[today] += 1
+                    if self.di_diff_confirm_enabled:
+                        # New crossover signal: reset the accumulator and start
+                        # collecting DI_difference from this bar onward.
+                        pending_signal_bars = [di_difference]
+                        pending_signal_row  = row
+                    else:
+                        # Immediate entry (original behaviour).
+                        entry_price       = price
+                        alloc_pct         = _capital_allocation_pct(entry_price)
+                        allocated_capital = self.capital * alloc_pct
+                        shares            = max(floor(allocated_capital / entry_price), 1)
+                        in_position       = True
+                        entry_row         = row
+                        peak_price        = entry_price
+                        daily_trade_count[today] += 1
+
+                elif (
+                    self.di_diff_confirm_enabled
+                    and pending_signal_bars
+                    and not in_position
+                    and _ENTRY_START <= t <= _ENTRY_CUTOFF
+                    and daily_trade_count[today] < _MAX_TRADES_PER_DAY
+                ):
+                    # Still within the 3-bar confirmation window; accumulate.
+                    pending_signal_bars.append(di_difference)
+
+                    if len(pending_signal_bars) >= 3:
+                        # 3rd bar reached: check if momentum is still expanding.
+                        di_diff_avg = sum(pending_signal_bars) / len(pending_signal_bars)
+                        if di_difference > di_diff_avg and price > 0:
+                            entry_price          = price
+                            alloc_pct            = _capital_allocation_pct(entry_price)
+                            allocated_capital    = self.capital * alloc_pct
+                            shares               = max(floor(allocated_capital / entry_price), 1)
+                            in_position          = True
+                            entry_row            = pending_signal_row
+                            peak_price           = entry_price
+                            di_diff_avg_at_entry = di_diff_avg
+                            daily_trade_count[today] += 1
+
+                        # Whether we entered or not, clear the pending window.
+                        pending_signal_bars = []
+                        pending_signal_row  = None
 
             prev_di_plus  = di_plus
             prev_di_minus = di_minus
