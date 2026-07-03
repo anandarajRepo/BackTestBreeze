@@ -79,8 +79,10 @@ TRAILING_STOP_PCT     = 20.0
 # the 3rd bar if that bar's DI_difference is GREATER THAN the 3-bar running
 # average (DI_difference_average). The average resets on every new crossover
 # signal so it always measures the momentum of the current setup.
-# Exit condition (when enabled): position closes when DI_difference drops
-# BELOW the DI_difference_average that was locked in at entry time.
+# Exit condition (when enabled): a running average of DI_difference is
+# maintained across every bar while in position (seeded with the entry bar's
+# value). The position closes as soon as the current bar's DI_difference drops
+# BELOW that live running average, indicating fading momentum.
 # Set to False to use the original immediate-entry behaviour.
 DI_DIFF_CONFIRM_ENABLED = False
 

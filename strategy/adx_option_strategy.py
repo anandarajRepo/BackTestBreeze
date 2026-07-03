@@ -323,7 +323,11 @@ class ADXOptionStrategy:
         # collected the confirmation check is attempted.
         pending_signal_bars: list[float] = []
         pending_signal_row  = None        # the row that originally fired the signal
-        di_diff_avg_at_entry = 0.0        # locked in at entry; used for the exit gate
+        # Running average of DI_difference across all bars while in position.
+        # Initialised at entry with the entry bar's value; extended each bar.
+        # Exit fires when the current bar's DI_difference drops below this average.
+        di_diff_running_sum   = 0.0
+        di_diff_running_count = 0
 
         for _, row in indicators.iterrows():
             dt: datetime  = row["datetime"]
@@ -367,11 +371,12 @@ class ADXOptionStrategy:
                     exit_reason = "TRAILING_STOP"
 
                 # DI-difference exit: when the confirmation filter is enabled,
-                # exit if DI_difference falls below the average locked at entry.
+                # exit if the current bar's DI_difference drops below the
+                # running average of DI_difference accumulated since entry.
                 elif (
                     self.di_diff_confirm_enabled
-                    and di_diff_avg_at_entry > 0
-                    and di_difference < di_diff_avg_at_entry
+                    and di_diff_running_count > 0
+                    and di_difference < di_diff_running_sum / di_diff_running_count
                 ):
                     exit_reason = "DI_DIFF_BELOW_AVG"
 
@@ -411,9 +416,16 @@ class ADXOptionStrategy:
                         duration_minutes=duration,
                     ))
 
-                    in_position      = False
-                    entry_row        = None
-                    di_diff_avg_at_entry = 0.0
+                    in_position           = False
+                    entry_row             = None
+                    di_diff_running_sum   = 0.0
+                    di_diff_running_count = 0
+
+                else:
+                    # Still in position — extend the running DI_difference average
+                    # with the current bar so the threshold keeps adapting.
+                    di_diff_running_sum   += di_difference
+                    di_diff_running_count += 1
 
             # ── Entry logic ───────────────────────────────────────────────
             # Standard ADX/DI system:
@@ -483,14 +495,16 @@ class ADXOptionStrategy:
                         # 3rd bar reached: check if momentum is still expanding.
                         di_diff_avg = sum(pending_signal_bars) / len(pending_signal_bars)
                         if di_difference > di_diff_avg and price > 0:
-                            entry_price          = price
-                            alloc_pct            = _capital_allocation_pct(entry_price)
-                            allocated_capital    = self.capital * alloc_pct
-                            shares               = max(floor(allocated_capital / entry_price), 1)
-                            in_position          = True
-                            entry_row            = pending_signal_row
-                            peak_price           = entry_price
-                            di_diff_avg_at_entry = di_diff_avg
+                            entry_price           = price
+                            alloc_pct             = _capital_allocation_pct(entry_price)
+                            allocated_capital     = self.capital * alloc_pct
+                            shares                = max(floor(allocated_capital / entry_price), 1)
+                            in_position           = True
+                            entry_row             = pending_signal_row
+                            peak_price            = entry_price
+                            # Seed the running average with the entry bar's DI_difference.
+                            di_diff_running_sum   = di_difference
+                            di_diff_running_count = 1
                             daily_trade_count[today] += 1
 
                         # Whether we entered or not, clear the pending window.
