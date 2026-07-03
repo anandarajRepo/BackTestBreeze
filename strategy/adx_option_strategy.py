@@ -11,6 +11,8 @@ Entry rules:
 Exit rules:
   - DI direction reversal (crossover flips)
   - Trailing stop-loss (optional, percentage-based)
+  - Break-even stop: once price moves `breakeven_trigger_pct` percent above
+    entry, the stop-loss is moved up to the entry price (optional)
   - Square-off at 15:20 IST
   - Max 5 trades per day per symbol
   - No new entries before 9:30 or after 14:45
@@ -239,6 +241,8 @@ class ADXOptionStrategy:
         per_day_atm: bool = False,
         trailing_stop_enabled: bool = False,
         trailing_stop_pct: float = 0.0,
+        breakeven_enabled: bool = False,
+        breakeven_trigger_pct: float = 5.0,
         di_diff_confirm_entry_cond_enabled: bool = False,
         di_diff_confirm_exit_cond_enabled: bool = False,
     ):
@@ -275,6 +279,11 @@ class ADXOptionStrategy:
         # the peak rises; it never loosens. Set enabled=False to disable.
         self.trailing_stop_enabled  = trailing_stop_enabled
         self.trailing_stop_pct      = trailing_stop_pct
+        # Break-even stop. Once the option price moves `breakeven_trigger_pct`
+        # percent above entry, the stop-loss is moved up to the entry price so
+        # the trade can no longer turn into a loss (locks in break-even).
+        self.breakeven_enabled      = breakeven_enabled
+        self.breakeven_trigger_pct  = breakeven_trigger_pct
         # DI-difference confirmation filter — entry and exit are toggled
         # independently so each condition can be turned on/off without affecting
         # the other.
@@ -317,6 +326,8 @@ class ADXOptionStrategy:
         entry_price   = 0.0
         shares        = 0
         peak_price    = 0.0   # highest price seen since entry (for trailing stop)
+        breakeven_stop = 0.0
+        moved_to_breakeven = False
 
         prev_di_plus  = None
         prev_di_minus = None
@@ -360,9 +371,24 @@ class ADXOptionStrategy:
                 if price > peak_price:
                     peak_price = price
 
+                # Break-even: once price moves the trigger above entry, ratchet
+                # the stop-loss up to the entry price.
+                if (
+                    self.breakeven_enabled
+                    and not moved_to_breakeven
+                    and price >= entry_price * (1 + self.breakeven_trigger_pct / 100.0)
+                ):
+                    breakeven_stop = entry_price
+                    moved_to_breakeven = True
+
                 # Square-off at 15:20
                 if t >= _SQUARE_OFF:
                     exit_reason = "SQUARE_OFF"
+
+                # Break-even stop: once armed, exit if price falls back to the
+                # entry price.
+                elif moved_to_breakeven and price <= breakeven_stop:
+                    exit_reason = "BREAKEVEN"
 
                 # Trailing stop-loss: exit if price falls `trailing_stop_pct`
                 # percent below the highest price reached since entry.
@@ -483,6 +509,8 @@ class ADXOptionStrategy:
                         in_position           = True
                         entry_row             = row
                         peak_price            = entry_price
+                        breakeven_stop        = 0.0
+                        moved_to_breakeven    = False
                         # Seed the running DI_difference average at entry so the
                         # exit filter works even when only the exit toggle is on.
                         di_diff_running_sum   = di_difference
@@ -510,6 +538,8 @@ class ADXOptionStrategy:
                             in_position           = True
                             entry_row             = pending_signal_row
                             peak_price            = entry_price
+                            breakeven_stop        = 0.0
+                            moved_to_breakeven    = False
                             # Seed the running average with the entry bar's DI_difference.
                             di_diff_running_sum   = di_difference
                             di_diff_running_count = 1
