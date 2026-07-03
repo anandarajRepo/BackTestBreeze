@@ -61,8 +61,8 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ───────────────────────────────────────────────────────────
 
-START_DATE = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE   = "16-Jun-2026"   # format: DD-Mon-YYYY
+START_DATE = "01-Jun-2026"   # format: DD-Mon-YYYY
+END_DATE   = "30-Jun-2026"   # format: DD-Mon-YYYY
 
 CAPITAL = 100_000.0          # capital per contract (used for position sizing)
 
@@ -107,7 +107,7 @@ MAX_TRADES_PER_DAY = 20
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL         = "1second"
 # Candle size (in seconds) used by the strategy. 120 ≈ the original 2-minute TF.
-RESAMPLE_SECONDS = 120
+RESAMPLE_SECONDS = 5
 
 PRINT_TRADES = False
 
