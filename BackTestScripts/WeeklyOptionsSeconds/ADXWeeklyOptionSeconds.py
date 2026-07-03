@@ -53,7 +53,7 @@ print("Session Generated Successfully\n")
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE          = "09-May-2026"   # format: DD-Mon-YYYY
+END_DATE          = "30-Jun-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
 ADX_PERIOD        = 60              # lookback period for ADX / DI calculation
@@ -71,7 +71,7 @@ VOLUME_FACTOR     = 1.0
 # TRAILING_STOP_PCT is expressed as a percentage, e.g. 20.0 = 20%.
 # Set TRAILING_STOP_ENABLED to False to disable the trailing stop entirely.
 TRAILING_STOP_ENABLED = True
-TRAILING_STOP_PCT     = 20.0
+TRAILING_STOP_PCT     = 10.0
 
 # Break-even stop. When enabled, once the option price moves
 # BREAKEVEN_TRIGGER_PCT percent above entry, the stop-loss is moved up to the
@@ -123,7 +123,7 @@ CACHE_ONLY        = True
 # each day is traded independently against its own ATM option contract.
 # When False (default), a single ATM strike is anchored to the week's Monday
 # open and traded across the whole expiry window.
-PER_DAY_ATM       = False
+PER_DAY_ATM       = True
 
 # NSE market holidays for 2026. When a Tuesday weekly expiry falls on one of
 # these dates, the expiry is rolled back to the previous trading day (skipping
