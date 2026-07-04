@@ -44,6 +44,8 @@ GAP_PCT       = 0.5
 MAX_GAP_PCT   = 5.0
 TARGET_PCT    = 5.0
 STOP_LOSS_PCT = 5.0
+TRAILING_STOP_PCT = 2.0  # trail the stop this % below/above the best price; 0 disables
+BREAK_EVEN_PCT    = 1.5  # move stop to entry once this % in profit; 0 disables
 START_DATE    = "01-Jan-2026 9:15:00"
 END_DATE      = "30-Jun-2026 15:29:59"
 INTERVAL      = "1day"
@@ -112,6 +114,8 @@ def run_symbol(stock_code: str, exchange_code: str) -> SymbolSummary:
             max_gap_pct=MAX_GAP_PCT,
             target_pct=TARGET_PCT,
             stop_loss_pct=STOP_LOSS_PCT,
+            trailing_stop_pct=TRAILING_STOP_PCT,
+            break_even_pct=BREAK_EVEN_PCT,
             start_date=START_DATE,
             end_date=END_DATE,
             interval=INTERVAL,
@@ -192,7 +196,7 @@ def print_report(summaries: list[SymbolSummary]) -> None:
     print(f"\n{'='*len(header)}")
     print("  CONSOLIDATED BACKTEST REPORT — SYMBOL-WISE SUMMARY")
     print(f"  Period : {START_DATE}  →  {END_DATE}")
-    print(f"  Gap    : {GAP_PCT}%–{MAX_GAP_PCT}%  |  Target: {TARGET_PCT}%  |  SL: {STOP_LOSS_PCT}%")
+    print(f"  Gap    : {GAP_PCT}%–{MAX_GAP_PCT}%  |  Target: {TARGET_PCT}%  |  SL: {STOP_LOSS_PCT}%  |  Trail: {TRAILING_STOP_PCT}%  |  BE: {BREAK_EVEN_PCT}%")
     print(f"{'='*len(header)}\n")
 
     print(header)
@@ -295,6 +299,8 @@ else:
         max_gap_pct=MAX_GAP_PCT,
         target_pct=TARGET_PCT,
         stop_loss_pct=STOP_LOSS_PCT,
+        trailing_stop_pct=TRAILING_STOP_PCT,
+        break_even_pct=BREAK_EVEN_PCT,
         start_date=START_DATE,
         end_date=END_DATE,
         interval=INTERVAL,

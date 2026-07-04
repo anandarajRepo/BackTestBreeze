@@ -40,6 +40,8 @@ class GapStrategy:
         continuation_threshold: float = 60.0,
         reversal_threshold: float = 60.0,
         capital: float = 0.0,
+        trailing_stop_pct: float = 0.0,
+        break_even_pct: float = 0.0,
     ):
         self.gap_trend_service = gap_trend_service
         self.order_manager = order_manager
@@ -58,6 +60,12 @@ class GapStrategy:
         self.continuation_threshold = continuation_threshold
         self.reversal_threshold = reversal_threshold
         self.capital = capital
+        # Trailing stop: once price moves in favour, the stop follows the
+        # best price at this distance (%). 0 disables trailing.
+        self.trailing_stop_pct = trailing_stop_pct
+        # Break-even: once price moves this % in favour, the stop is moved
+        # to the entry price. 0 disables break-even.
+        self.break_even_pct = break_even_pct
 
     def _quantity_for(self, entry_price: float) -> int:
         """Number of shares the allotted capital buys at the entry price
@@ -81,6 +89,7 @@ class GapStrategy:
     def _simulate_exit(
         self,
         direction: TradeDirection,
+        entry: float,
         target: float,
         stop_loss: float,
         day_candles: list[dict],
@@ -89,21 +98,60 @@ class GapStrategy:
         Walk through intraday candles and return (exit_price, exit_reason).
         For each candle, stop-loss takes priority if both levels are touched.
         Falls back to closing price of the last candle.
+
+        The stop can be tightened as price moves in the trade's favour:
+          - break-even: once price is break_even_pct in profit, the stop is
+            moved to the entry price;
+          - trailing stop: the stop follows the best favourable price at a
+            distance of trailing_stop_pct.
+        The stop only ever moves in the trade's favour, and both adjustments
+        take effect from the candle AFTER the one that triggered them (a
+        stop can't react to a move within the same candle).
         """
+        stop = stop_loss
+        stop_reason = "stop_loss"
+        best_price = entry
+        break_even_armed = False
+
         for candle in day_candles:
             high = float(candle["high"])
             low = float(candle["low"])
 
             if direction == TradeDirection.BUY:
-                if low <= stop_loss:
-                    return stop_loss, "stop_loss"
+                if low <= stop:
+                    return stop, stop_reason
                 if high >= target:
                     return target, "target"
+                best_price = max(best_price, high)
             else:  # SELL / short
-                if high >= stop_loss:
-                    return stop_loss, "stop_loss"
+                if high >= stop:
+                    return stop, stop_reason
                 if low <= target:
                     return target, "target"
+                best_price = min(best_price, low)
+
+            favourable_move_pct = abs(best_price - entry) / entry * 100
+
+            if (
+                self.break_even_pct > 0
+                and not break_even_armed
+                and favourable_move_pct >= self.break_even_pct
+            ):
+                break_even_armed = True
+                if direction == TradeDirection.BUY and entry > stop:
+                    stop, stop_reason = entry, "break_even"
+                elif direction == TradeDirection.SELL and entry < stop:
+                    stop, stop_reason = entry, "break_even"
+
+            if self.trailing_stop_pct > 0:
+                if direction == TradeDirection.BUY:
+                    trail = round(best_price * (1 - self.trailing_stop_pct / 100), 2)
+                    if trail > stop:
+                        stop, stop_reason = trail, "trailing_stop"
+                else:
+                    trail = round(best_price * (1 + self.trailing_stop_pct / 100), 2)
+                    if trail < stop:
+                        stop, stop_reason = trail, "trailing_stop"
 
         return float(day_candles[-1]["close"]), "close"
 
@@ -136,6 +184,7 @@ class GapStrategy:
         print(
             f"  Gap: {self.gap_pct}%–{self.max_gap_pct}% | "
             f"Target: {self.target_pct}% | SL: {self.stop_loss_pct}% | "
+            f"Trail: {self.trailing_stop_pct}% | BE: {self.break_even_pct}% | "
             f"Lookback: {self.behavior_lookback_days}d | "
             f"Min history: {self.min_gap_history} | "
             f"Thresholds: cont={self.continuation_threshold}% rev={self.reversal_threshold}%"
@@ -212,7 +261,9 @@ class GapStrategy:
                 target = round(today_open * (1 - self.target_pct / 100), 2)
                 stop_loss = round(today_open * (1 + self.stop_loss_pct / 100), 2)
 
-            exit_price, exit_reason = self._simulate_exit(direction, target, stop_loss, today_candles)
+            exit_price, exit_reason = self._simulate_exit(
+                direction, today_open, target, stop_loss, today_candles
+            )
 
             quantity = self._quantity_for(today_open)
             if direction == TradeDirection.BUY:
