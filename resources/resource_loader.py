@@ -1,26 +1,33 @@
 """
 Loader utilities for the resources folder.
 
-- resources/stocks/*.txt      : one Breeze stock code per line (e.g. "NSE:TCS-EQ"),
-                                grouped into separate files (by sector / watchlist).
-- resources/futures_contracts.txt : tab-separated futures contract details with
-                                columns: Scrip, Expiry, Lot Size, Margin/Lot.
+- resources/stocks.json           : all stock lists in one file, keyed by group
+                                    name (sector / watchlist), each value a list
+                                    of Breeze stock codes (e.g. "NSE:TCS-EQ").
+- resources/futures_contracts.json: futures contract details, a list of objects
+                                    with keys: scrip, expiry, lot_size, margin_per_lot.
+- resources/indices.json          : index definitions with name, symbol,
+                                    breeze_code and exchange.
 
 Usage:
-    from resources.resource_loader import load_stocks, load_all_stocks, load_futures_contracts
+    from resources.resource_loader import (
+        load_stocks, load_all_stocks, load_futures_contracts, load_indices
+    )
 
-    banking      = load_stocks("banking")          # list[str] from stocks/banking.txt
-    all_symbols  = load_all_stocks()               # merged, de-duplicated list from every txt file
+    banking      = load_stocks("banking")          # list[str] for one group
+    all_symbols  = load_all_stocks()               # merged, de-duplicated list
     contracts    = load_futures_contracts()        # dict[scrip] -> FutureContract
+    indices      = load_indices()                  # dict[breeze_code] -> Index
 """
 
-import csv
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
 RESOURCES_DIR = Path(__file__).resolve().parent
-STOCKS_DIR = RESOURCES_DIR / "stocks"
-FUTURES_FILE = RESOURCES_DIR / "futures_contracts.txt"
+STOCKS_FILE = RESOURCES_DIR / "stocks.json"
+FUTURES_FILE = RESOURCES_DIR / "futures_contracts.json"
+INDICES_FILE = RESOURCES_DIR / "indices.json"
 
 
 @dataclass(frozen=True)
@@ -31,32 +38,36 @@ class FutureContract:
     margin_per_lot: float
 
 
-def _read_lines(path: Path) -> list[str]:
-    lines = []
-    for raw in path.read_text().splitlines():
-        line = raw.strip()
-        if line and not line.startswith("#"):
-            lines.append(line)
-    return lines
+@dataclass(frozen=True)
+class Index:
+    name: str
+    symbol: str
+    breeze_code: str
+    exchange: str
+
+
+def _load_stock_groups() -> dict[str, list[str]]:
+    with STOCKS_FILE.open() as fh:
+        return json.load(fh)
 
 
 def list_stock_files() -> list[str]:
-    """Names (without extension) of the available stock list files."""
-    return sorted(p.stem for p in STOCKS_DIR.glob("*.txt"))
+    """Names of the available stock groups in stocks.json."""
+    return sorted(_load_stock_groups())
 
 
 def load_stocks(name: str) -> list[str]:
-    """Load one stock list, e.g. load_stocks("banking")."""
-    path = STOCKS_DIR / f"{name}.txt"
-    if not path.exists():
-        raise FileNotFoundError(
-            f"No stock list '{name}'. Available: {', '.join(list_stock_files())}"
+    """Load one stock group, e.g. load_stocks("banking")."""
+    groups = _load_stock_groups()
+    if name not in groups:
+        raise KeyError(
+            f"No stock list '{name}'. Available: {', '.join(sorted(groups))}"
         )
-    return _read_lines(path)
+    return list(groups[name])
 
 
 def load_all_stocks() -> list[str]:
-    """Merge every stock list, preserving order and dropping duplicates."""
+    """Merge every stock group, preserving order and dropping duplicates."""
     seen: dict[str, None] = {}
     for name in list_stock_files():
         for symbol in load_stocks(name):
@@ -66,20 +77,20 @@ def load_all_stocks() -> list[str]:
 
 def load_futures_contracts() -> dict[str, FutureContract]:
     """Load futures contract details keyed by scrip code."""
-    contracts: dict[str, FutureContract] = {}
-    with FUTURES_FILE.open(newline="") as fh:
-        for row in csv.DictReader(fh, delimiter="\t"):
-            scrip = row["Scrip"].strip()
-            contracts[scrip] = FutureContract(
-                scrip=scrip,
-                expiry=row["Expiry"].strip(),
-                lot_size=int(row["Lot Size"]),
-                margin_per_lot=float(row["Margin/Lot"]),
-            )
-    return contracts
+    with FUTURES_FILE.open() as fh:
+        rows = json.load(fh)
+    return {row["scrip"]: FutureContract(**row) for row in rows}
+
+
+def load_indices() -> dict[str, Index]:
+    """Load index definitions keyed by Breeze code."""
+    with INDICES_FILE.open() as fh:
+        rows = json.load(fh)["indices"]
+    return {row["breeze_code"]: Index(**row) for row in rows}
 
 
 if __name__ == "__main__":
     print(f"Stock lists: {', '.join(list_stock_files())}")
     print(f"Total unique stocks: {len(load_all_stocks())}")
     print(f"Futures contracts:   {len(load_futures_contracts())}")
+    print(f"Indices:             {len(load_indices())}")

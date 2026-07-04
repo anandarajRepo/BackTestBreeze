@@ -1,0 +1,89 @@
+{
+  "airlines": [
+    "NSE:INDPAI-EQ"
+  ],
+  "autos": [
+    "NSE:MARUTI-EQ",
+    "NSE:MAHMAH-EQ",
+    "NSE:BAAUTO-EQ",
+    "NSE:EICMOT-EQ",
+    "NSE:TVSMOT-EQ"
+  ],
+  "banking": [
+    "NSE:HDFBAN-EQ",
+    "NSE:ICIBAN-EQ",
+    "NSE:AXIBAN-EQ",
+    "NSE:KOTMAH-EQ",
+    "NSE:STABAN-EQ"
+  ],
+  "city_gas": [
+    "NSE:INDGAS-EQ",
+    "NSE:MAHGAS-EQ",
+    "NSE:GUJGA-EQ",
+    "NSE:PETLNG-EQ"
+  ],
+  "defence": [
+    "NSE:HINAER-EQ",
+    "NSE:BHAELE-EQ",
+    "NSE:MAZDOC-EQ",
+    "NSE:DATPAT-EQ"
+  ],
+  "favourites": [
+    "NSE:STETEC-EQ",
+    "NSE:AXIIT-EQ"
+  ],
+  "it": [
+    "NSE:INFTEC-EQ",
+    "NSE:TCS-EQ",
+    "NSE:HCLTEC-EQ",
+    "NSE:WIPRO-EQ",
+    "NSE:TECMAH-EQ"
+  ],
+  "jewellery": [
+    "NSE:TITIND-EQ",
+    "NSE:KALJEW-EQ",
+    "NSE:PCJEW-EQ",
+    "NSE:PNGADG-EQ",
+    "NSE:THAJEW-EQ",
+    "NSE:SENGOL-EQ",
+    "NSE:SKYGOL-EQ",
+    "NSE:GOLINT-EQ"
+  ],
+  "oil_gas": [
+    "NSE:ONGC-EQ",
+    "NSE:OILIND-EQ",
+    "NSE:GAIL-EQ"
+  ],
+  "oil_marketing": [
+    "NSE:INDOIL-EQ",
+    "NSE:BHAPET-EQ",
+    "NSE:HINPET-EQ"
+  ],
+  "paints": [
+    "NSE:ASIPAI-EQ",
+    "NSE:BERPAI-EQ",
+    "NSE:KANNER-EQ"
+  ],
+  "pharma": [
+    "NSE:SUNPHA-EQ",
+    "NSE:DIVLAB-EQ",
+    "NSE:CIPLA-EQ"
+  ],
+  "renewables": [
+    "NSE:ADAGRE-EQ",
+    "NSE:TATPOW-EQ",
+    "NSE:CESC-EQ"
+  ],
+  "sugar_ethanol": [
+    "NSE:EIDPAR-EQ",
+    "NSE:BALCHI-EQ",
+    "NSE:TRIENG-EQ"
+  ],
+  "tyres": [
+    "NSE:CEAT-EQ",
+    "NSE:MRFTYR-EQ",
+    "NSE:APOTYR-EQ",
+    "NSE:JKTYRE-EQ",
+    "NSE:BALIND-EQ"
+  ]
+}

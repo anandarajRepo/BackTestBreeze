@@ -1,0 +1,34 @@
+{
+  "indices": [
+    {
+      "name": "NIFTY 50",
+      "symbol": "NSE:NIFTY",
+      "breeze_code": "NIFTY",
+      "exchange": "NSE"
+    },
+    {
+      "name": "NIFTY BANK",
+      "symbol": "NSE:CNXBAN",
+      "breeze_code": "CNXBAN",
+      "exchange": "NSE"
+    },
+    {
+      "name": "NIFTY FINANCIAL SERVICES",
+      "symbol": "NSE:NIFFIN",
+      "breeze_code": "NIFFIN",
+      "exchange": "NSE"
+    },
+    {
+      "name": "NIFTY MIDCAP SELECT",
+      "symbol": "NSE:NIFSEL",
+      "breeze_code": "NIFSEL",
+      "exchange": "NSE"
+    },
+    {
+      "name": "SENSEX",
+      "symbol": "BSE:BSESEN",
+      "breeze_code": "BSESEN",
+      "exchange": "BSE"
+    }
+  ]
+}

@@ -1,0 +1,284 @@
+[
+  {
+    "scrip": "ONGC",
+    "expiry": "28-Jul-2026",
+    "lot_size": 2250,
+    "margin_per_lot": 135000.0
+  },
+  {
+    "scrip": "OILIND",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1400,
+    "margin_per_lot": 125000.0
+  },
+  {
+    "scrip": "GAIL",
+    "expiry": "28-Jul-2026",
+    "lot_size": 6300,
+    "margin_per_lot": 145000.0
+  },
+  {
+    "scrip": "ADAGRE",
+    "expiry": "28-Jul-2026",
+    "lot_size": 600,
+    "margin_per_lot": 185000.0
+  },
+  {
+    "scrip": "TATPOW",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1450,
+    "margin_per_lot": 120000.0
+  },
+  {
+    "scrip": "CESC",
+    "expiry": "28-Jul-2026",
+    "lot_size": 3625,
+    "margin_per_lot": 110000.0
+  },
+  {
+    "scrip": "INDGAS",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1375,
+    "margin_per_lot": 105000.0
+  },
+  {
+    "scrip": "MAHGAS",
+    "expiry": "28-Jul-2026",
+    "lot_size": 400,
+    "margin_per_lot": 120000.0
+  },
+  {
+    "scrip": "GUJGA",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1250,
+    "margin_per_lot": 100000.0
+  },
+  {
+    "scrip": "PETLNG",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1500,
+    "margin_per_lot": 95000.0
+  },
+  {
+    "scrip": "HINAER",
+    "expiry": "28-Jul-2026",
+    "lot_size": 150,
+    "margin_per_lot": 185000.0
+  },
+  {
+    "scrip": "BHAELE",
+    "expiry": "28-Jul-2026",
+    "lot_size": 2850,
+    "margin_per_lot": 160000.0
+  },
+  {
+    "scrip": "MAZDOC",
+    "expiry": "28-Jul-2026",
+    "lot_size": 175,
+    "margin_per_lot": 190000.0
+  },
+  {
+    "scrip": "DATPAT",
+    "expiry": "28-Jul-2026",
+    "lot_size": 325,
+    "margin_per_lot": 140000.0
+  },
+  {
+    "scrip": "EIDPAR",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1400,
+    "margin_per_lot": 105000.0
+  },
+  {
+    "scrip": "BALCHI",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1600,
+    "margin_per_lot": 110000.0
+  },
+  {
+    "scrip": "TRIENG",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1500,
+    "margin_per_lot": 120000.0
+  },
+  {
+    "scrip": "SUNPHA",
+    "expiry": "28-Jul-2026",
+    "lot_size": 350,
+    "margin_per_lot": 125000.0
+  },
+  {
+    "scrip": "DIVLAB",
+    "expiry": "28-Jul-2026",
+    "lot_size": 100,
+    "margin_per_lot": 135000.0
+  },
+  {
+    "scrip": "CIPLA",
+    "expiry": "28-Jul-2026",
+    "lot_size": 375,
+    "margin_per_lot": 115000.0
+  },
+  {
+    "scrip": "INDOIL",
+    "expiry": "28-Jul-2026",
+    "lot_size": 4875,
+    "margin_per_lot": 130000.0
+  },
+  {
+    "scrip": "BHAPET",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1975,
+    "margin_per_lot": 125000.0
+  },
+  {
+    "scrip": "HINPET",
+    "expiry": "28-Jul-2026",
+    "lot_size": 2025,
+    "margin_per_lot": 120000.0
+  },
+  {
+    "scrip": "INDPAI",
+    "expiry": "28-Jul-2026",
+    "lot_size": 150,
+    "margin_per_lot": 145000.0
+  },
+  {
+    "scrip": "ASIPAI",
+    "expiry": "28-Jul-2026",
+    "lot_size": 250,
+    "margin_per_lot": 130000.0
+  },
+  {
+    "scrip": "CEAT",
+    "expiry": "28-Jul-2026",
+    "lot_size": 200,
+    "margin_per_lot": 135000.0
+  },
+  {
+    "scrip": "MRFTYR",
+    "expiry": "28-Jul-2026",
+    "lot_size": 5,
+    "margin_per_lot": 150000.0
+  },
+  {
+    "scrip": "APOTYR",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1700,
+    "margin_per_lot": 110000.0
+  },
+  {
+    "scrip": "JKTYRE",
+    "expiry": "28-Jul-2026",
+    "lot_size": 2100,
+    "margin_per_lot": 105000.0
+  },
+  {
+    "scrip": "BALIND",
+    "expiry": "28-Jul-2026",
+    "lot_size": 300,
+    "margin_per_lot": 120000.0
+  },
+  {
+    "scrip": "MARUTI",
+    "expiry": "28-Jul-2026",
+    "lot_size": 50,
+    "margin_per_lot": 155000.0
+  },
+  {
+    "scrip": "MAHMAH",
+    "expiry": "28-Jul-2026",
+    "lot_size": 350,
+    "margin_per_lot": 185000.0
+  },
+  {
+    "scrip": "BAAUTO",
+    "expiry": "28-Jul-2026",
+    "lot_size": 75,
+    "margin_per_lot": 160000.0
+  },
+  {
+    "scrip": "EICMOT",
+    "expiry": "28-Jul-2026",
+    "lot_size": 175,
+    "margin_per_lot": 150000.0
+  },
+  {
+    "scrip": "TVSMOT",
+    "expiry": "28-Jul-2026",
+    "lot_size": 350,
+    "margin_per_lot": 140000.0
+  },
+  {
+    "scrip": "TITIND",
+    "expiry": "28-Jul-2026",
+    "lot_size": 175,
+    "margin_per_lot": 130000.0
+  },
+  {
+    "scrip": "KALJEW",
+    "expiry": "28-Jul-2026",
+    "lot_size": 1150,
+    "margin_per_lot": 120000.0
+  },
+  {
+    "scrip": "INFTEC",
+    "expiry": "28-Jul-2026",
+    "lot_size": 400,
+    "margin_per_lot": 150000.0
+  },
+  {
+    "scrip": "TCS",
+    "expiry": "28-Jul-2026",
+    "lot_size": 175,
+    "margin_per_lot": 140000.0
+  },
+  {
+    "scrip": "HCLTEC",
+    "expiry": "28-Jul-2026",
+    "lot_size": 350,
+    "margin_per_lot": 125000.0
+  },
+  {
+    "scrip": "WIPRO",
+    "expiry": "28-Jul-2026",
+    "lot_size": 3000,
+    "margin_per_lot": 135000.0
+  },
+  {
+    "scrip": "TECMAH",
+    "expiry": "28-Jul-2026",
+    "lot_size": 600,
+    "margin_per_lot": 145000.0
+  },
+  {
+    "scrip": "HDFBAN",
+    "expiry": "28-Jul-2026",
+    "lot_size": 550,
+    "margin_per_lot": 135000.0
+  },
+  {
+    "scrip": "ICIBAN",
+    "expiry": "28-Jul-2026",
+    "lot_size": 700,
+    "margin_per_lot": 130000.0
+  },
+  {
+    "scrip": "AXIBAN",
+    "expiry": "28-Jul-2026",
+    "lot_size": 625,
+    "margin_per_lot": 125000.0
+  },
+  {
+    "scrip": "KOTMAH",
+    "expiry": "28-Jul-2026",
+    "lot_size": 400,
+    "margin_per_lot": 140000.0
+  },
+  {
+    "scrip": "STABAN",
+    "expiry": "28-Jul-2026",
+    "lot_size": 750,
+    "margin_per_lot": 120000.0
+  }
+]
