@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from breeze_connect import BreezeConnect
 from dotenv import load_dotenv
 
-from resources.resource_loader import load_all_stocks
+from resources.resource_loader import load_all_stocks, load_indices, load_stocks
 from services.gap_trend_service import GapTrendService
 from strategy.gap_strategy import GapStrategy
 from strategy.order_manager import OrderManager
@@ -32,9 +32,26 @@ MULTI_SYMBOL = True
 STOCK_CODE    = "OLAELE"
 EXCHANGE_CODE = "NSE"
 
-# ── Multi-Symbol List ─────────────────────────────────────────────────────────
+# ── Multi-Symbol Universe ─────────────────────────────────────────────────────
+# Choose what to backtest from the resources folder:
+#   UNIVERSE = "stocks"  → stock lists from resources/stocks.json
+#   UNIVERSE = "indices" → index definitions from resources/indices.json
+# STOCK_GROUP narrows "stocks" to a single group (e.g. "banking", "it");
+# leave it as None to run every group.
 
-SYMBOLS = load_all_stocks()  # all groups from resources/stocks.json
+UNIVERSE    = "stocks"   # "stocks" | "indices"
+STOCK_GROUP = None       # e.g. "banking"; None = all groups
+
+
+def load_symbols() -> list[str]:
+    if UNIVERSE == "indices":
+        return [f"{idx.exchange}:{idx.breeze_code}" for idx in load_indices().values()]
+    if UNIVERSE == "stocks":
+        return load_stocks(STOCK_GROUP) if STOCK_GROUP else load_all_stocks()
+    raise ValueError(f"Unknown UNIVERSE '{UNIVERSE}'. Use 'stocks' or 'indices'.")
+
+
+SYMBOLS = load_symbols()
 
 # ── Shared Strategy Configuration ─────────────────────────────────────────────
 
@@ -75,7 +92,7 @@ class SymbolSummary:
 
 
 def parse_symbol(symbol: str) -> tuple[str, str]:
-    """Parse 'NSE:ONGC-EQ' → ('ONGC', 'NSE')."""
+    """Parse 'NSE:ONGC-EQ' or 'NSE:NIFTY' → ('ONGC', 'NSE') / ('NIFTY', 'NSE')."""
     exchange, rest = symbol.split(":", 1)
     stock_code = rest.removesuffix("-EQ")
     return stock_code, exchange
@@ -96,9 +113,11 @@ def resolve_breeze_code(stock_code: str, exchange_code: str) -> str:
     return stock_code
 
 
-def run_symbol(stock_code: str, exchange_code: str) -> SymbolSummary:
-    symbol_label = f"{exchange_code}:{stock_code}-EQ"
-    stock_code = resolve_breeze_code(stock_code, exchange_code)
+def run_symbol(stock_code: str, exchange_code: str, symbol_label: str | None = None) -> SymbolSummary:
+    if symbol_label is None:
+        symbol_label = f"{exchange_code}:{stock_code}-EQ"
+    if UNIVERSE != "indices":
+        stock_code = resolve_breeze_code(stock_code, exchange_code)
     try:
         gap_trend_service = GapTrendService(breeze)
         order_manager = OrderManager(breeze)
@@ -279,7 +298,7 @@ if MULTI_SYMBOL:
     summaries: list[SymbolSummary] = []
     for sym in unique_symbols:
         stock_code, exchange_code = parse_symbol(sym)
-        summaries.append(run_symbol(stock_code, exchange_code))
+        summaries.append(run_symbol(stock_code, exchange_code, symbol_label=sym))
 
     print_report(summaries)
     save_csv(summaries, REPORT_CSV)
