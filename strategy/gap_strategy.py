@@ -39,6 +39,7 @@ class GapStrategy:
         min_gap_history: int = 5,
         continuation_threshold: float = 60.0,
         reversal_threshold: float = 60.0,
+        capital: float = 0.0,
     ):
         self.gap_trend_service = gap_trend_service
         self.order_manager = order_manager
@@ -56,6 +57,16 @@ class GapStrategy:
         self.min_gap_history = min_gap_history
         self.continuation_threshold = continuation_threshold
         self.reversal_threshold = reversal_threshold
+        self.capital = capital
+
+    def _quantity_for(self, entry_price: float) -> int:
+        """Number of shares the allotted capital buys at the entry price
+        (minimum 1). Falls back to the fixed quantity when no capital is
+        configured."""
+        if self.capital > 0 and entry_price > 0:
+            qty = int(self.capital // entry_price)
+            return max(qty, 1)
+        return self.quantity
 
     def _compute_levels(self, signal: GapSignal) -> tuple[float, float]:
         entry = signal.today_open
@@ -203,10 +214,11 @@ class GapStrategy:
 
             exit_price, exit_reason = self._simulate_exit(direction, target, stop_loss, today_candles)
 
+            quantity = self._quantity_for(today_open)
             if direction == TradeDirection.BUY:
-                pnl = round((exit_price - today_open) * self.quantity, 2)
+                pnl = round((exit_price - today_open) * quantity, 2)
             else:
-                pnl = round((today_open - exit_price) * self.quantity, 2)
+                pnl = round((today_open - exit_price) * quantity, 2)
 
             total_pnl += pnl
 
@@ -233,7 +245,7 @@ class GapStrategy:
             print(
                 f"  {trade_date}  Gap {gap_pct:+.2f}% [{gap_type.value:15s}]"
                 f"  {direction_label} ({bias})"
-                f"  Entry {today_open:.2f}  Exit {exit_price:.2f}"
+                f"  Qty {quantity}  Entry {today_open:.2f}  Exit {exit_price:.2f}"
                 f"  [{exit_reason:10s}]  PnL {pnl_sign}{pnl:.2f}"
             )
 
@@ -264,11 +276,14 @@ class GapStrategy:
 
         target, stop_loss = self._compute_levels(signal)
 
+        quantity = self._quantity_for(signal.today_open)
+        print(f"Quantity       : {quantity}")
+
         order_resp = self.order_manager.place_market_order(
             signal.direction.value,
             self.stock_code,
             self.exchange_code,
-            self.quantity,
+            quantity,
         )
 
         print(f"{signal.direction.value.upper()} order response : {order_resp}")
