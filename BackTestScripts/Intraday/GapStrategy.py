@@ -124,7 +124,8 @@ SYMBOLS = [
 
 # ── Shared Strategy Configuration ─────────────────────────────────────────────
 
-QUANTITY      = 1
+CAPITAL       = 100_000  # ₹1 lakh per trade; quantity = CAPITAL // entry price
+QUANTITY      = 1        # fallback quantity if CAPITAL is 0
 GAP_PCT       = 0.5
 MAX_GAP_PCT   = 5.0
 TARGET_PCT    = 5.0
@@ -192,6 +193,7 @@ def run_symbol(stock_code: str, exchange_code: str) -> SymbolSummary:
             stock_code=stock_code,
             exchange_code=exchange_code,
             quantity=QUANTITY,
+            capital=CAPITAL,
             gap_pct=GAP_PCT,
             max_gap_pct=MAX_GAP_PCT,
             target_pct=TARGET_PCT,
@@ -374,6 +376,7 @@ else:
         stock_code=resolve_breeze_code(STOCK_CODE, EXCHANGE_CODE),
         exchange_code=EXCHANGE_CODE,
         quantity=QUANTITY,
+        capital=CAPITAL,
         gap_pct=GAP_PCT,
         max_gap_pct=MAX_GAP_PCT,
         target_pct=TARGET_PCT,
