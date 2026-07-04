@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from breeze_connect import BreezeConnect
 from dotenv import load_dotenv
 
+from resources.resource_loader import load_all_stocks
 from services.gap_trend_service import GapTrendService
 from strategy.gap_strategy import GapStrategy
 from strategy.order_manager import OrderManager
@@ -33,94 +34,7 @@ EXCHANGE_CODE = "NSE"
 
 # ── Multi-Symbol List ─────────────────────────────────────────────────────────
 
-SYMBOLS = [
-    # Oil & Gas — PSU Upstream
-    "NSE:ONGC-EQ",
-    "NSE:OIL-EQ",
-    "NSE:GAIL-EQ",
-
-    # Renewables — Structural Beneficiaries
-    "NSE:ADANIGREEN-EQ",
-    "NSE:TATAPOWER-EQ",
-    "NSE:CESC-EQ",
-
-    # City Gas / LNG Distribution
-    "NSE:IGL-EQ",
-    "NSE:MGL-EQ",
-    "NSE:GUJGASLTD-EQ",
-    "NSE:PETRONET-EQ",
-
-    # Defence
-    "NSE:HAL-EQ",
-    "NSE:BEL-EQ",
-    "NSE:MAZDOCK-EQ",
-    "NSE:DATAPATTNS-EQ",
-
-    # Sugar - Ethanol
-    "NSE:EIDPARRY-EQ",
-    "NSE:BALRAMCHIN-EQ",
-    "NSE:TRIVENI-EQ",
-
-    # Pharmaceuticals
-    "NSE:SUNPHARMA-EQ",
-    "NSE:DIVISLAB-EQ",
-    "NSE:CIPLA-EQ",
-
-    # Petroleum (Oil Marketing Companies)
-    "NSE:IOC-EQ",
-    "NSE:BPCL-EQ",
-    "NSE:HINDPETRO-EQ",
-
-    # Airlines
-    "NSE:INDIGO-EQ",
-
-    # Paints
-    "NSE:ASIANPAINT-EQ",
-    "NSE:BERGEPAINT-EQ",
-    "NSE:KANSAINER-EQ",
-    "NSE:INDIGOPNTS-EQ",
-
-    # Tyres
-    "NSE:CEATLTD-EQ",
-    "NSE:MRF-EQ",
-    "NSE:APOLLOTYRE-EQ",
-    "NSE:JKTYRE-EQ",
-    "NSE:BALKRISIND-EQ",
-
-    # Autos (Nifty Auto)
-    "NSE:MARUTI-EQ",
-    "NSE:M&M-EQ",
-    "NSE:BAJAJ-AUTO-EQ",
-    "NSE:EICHERMOT-EQ",
-    "NSE:TVSMOTOR-EQ",
-
-    # IPO Stocks
-    "NSE:VIKRAMSOLR-EQ",
-    "NSE:ATLANTAELE-EQ",
-    "NSE:SOLARWORLD-EQ",
-    "NSE:RUBICON-EQ",
-    "NSE:MIDWESTLTD-EQ",
-
-    # Jewellery
-    "NSE:TITAN-EQ",
-    "NSE:KALYANKJIL-EQ",
-    "NSE:PCJEWELLER-EQ",
-    "NSE:PNGBL-EQ",
-    "NSE:THANGAMAYL-EQ",
-    "NSE:SENCO-EQ",
-    "NSE:RJIL-EQ",
-    "NSE:SKYGOLD-EQ",
-    "NSE:GOLDIAM-EQ",
-    "NSE:DIVHJL-EQ",
-    "NSE:ZODIACJL-EQ",
-    "NSE:NARBADAG-EQ",
-    "NSE:MOKSH-EQ",
-    "NSE:SWARN-EQ",
-
-    # Favourite Stocks
-    "NSE:STLTECH-EQ",
-    "NSE:AXISCADES-EQ",
-]
+SYMBOLS = load_all_stocks()  # all groups from resources/stocks.json
 
 # ── Shared Strategy Configuration ─────────────────────────────────────────────
 
