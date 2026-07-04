@@ -164,8 +164,24 @@ def parse_symbol(symbol: str) -> tuple[str, str]:
     return stock_code, exchange
 
 
+def resolve_breeze_code(stock_code: str, exchange_code: str) -> str:
+    """Map an exchange ticker (e.g. 'TATAPOWER') to the ISEC/Breeze short
+    code (e.g. 'TATPOW') that the historical-data API expects. Codes that
+    are already Breeze short codes resolve to themselves."""
+    try:
+        resp = breeze.get_names(exchange_code=exchange_code, stock_code=stock_code)
+    except Exception:
+        return stock_code
+    if isinstance(resp, dict):
+        isec_code = resp.get("isec_stock_code")
+        if isec_code:
+            return isec_code
+    return stock_code
+
+
 def run_symbol(stock_code: str, exchange_code: str) -> SymbolSummary:
     symbol_label = f"{exchange_code}:{stock_code}-EQ"
+    stock_code = resolve_breeze_code(stock_code, exchange_code)
     try:
         gap_trend_service = GapTrendService(breeze)
         order_manager = OrderManager(breeze)
@@ -355,7 +371,7 @@ else:
     strategy = GapStrategy(
         gap_trend_service=gap_trend_service,
         order_manager=order_manager,
-        stock_code=STOCK_CODE,
+        stock_code=resolve_breeze_code(STOCK_CODE, EXCHANGE_CODE),
         exchange_code=EXCHANGE_CODE,
         quantity=QUANTITY,
         gap_pct=GAP_PCT,
