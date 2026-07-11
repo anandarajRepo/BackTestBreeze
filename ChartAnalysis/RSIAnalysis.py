@@ -4,10 +4,15 @@ Nifty 50 Index — Intraday RSI Extremes Analysis (1-minute data)
 
 Fetches 1-minute Nifty 50 spot (cash) candles for every trading day in the
 configured window, computes RSI on the 1-minute closes, and reports — day by
-day — how many 1-minute bars closed with:
+day — how many crossover events occurred with:
 
   - RSI < 30  (oversold)
   - RSI > 70  (overbought)
+
+Each excursion into an extreme zone is counted as ONE crossover, no matter
+how many bars it lasts: e.g. once RSI drops below 30, the whole stretch until
+it crosses back above 30 counts as a single oversold event. The same applies
+to stretches above 70.
 
 Data retrieval follows the same pattern as the BackTestScripts/
 WeeklyOptionsSeconds scripts: a Breeze session is created from .env
@@ -47,14 +52,36 @@ END_DATE       = "10-Jul-2026"   # format: DD-Mon-YYYY
 
 INTERVAL       = "1minute"       # candle size fetched from Breeze
 RSI_PERIOD     = 14              # RSI lookback (in 1-minute bars)
-RSI_OVERSOLD   = 30.0            # count bars with RSI strictly below this
-RSI_OVERBOUGHT = 70.0            # count bars with RSI strictly above this
+RSI_OVERSOLD   = 30.0            # oversold threshold (RSI strictly below this)
+RSI_OVERBOUGHT = 70.0            # overbought threshold (RSI strictly above this)
 
 # Regular Nifty market hours (IST) — the fetch window for each trading day.
 MARKET_OPEN    = time(9, 15)
 MARKET_CLOSE   = time(15, 30)
 
 # ── Analysis ──────────────────────────────────────────────────────────────────
+
+
+def count_zone_crossovers(rsi, threshold: float, oversold: bool) -> int:
+    """Count completed excursions of RSI into an extreme zone.
+
+    A run of consecutive bars inside the zone (RSI < threshold when
+    ``oversold``, RSI > threshold otherwise) is combined into a single
+    event, counted once RSI crosses back out of the zone. An excursion
+    still open at the last bar also counts as one event.
+    """
+    in_zone = (rsi < threshold) if oversold else (rsi > threshold)
+    count = 0
+    inside = False
+    for flag in in_zone:
+        if flag and not inside:
+            inside = True          # entered the zone: start of one event
+        elif not flag and inside:
+            inside = False         # crossed back out: event completed
+            count += 1
+    if inside:                     # session ended while still in the zone
+        count += 1
+    return count
 
 
 def main() -> None:
@@ -94,8 +121,8 @@ def main() -> None:
         rsi = rsi_df["rsi"].dropna()
 
         bars = len(rsi_df)
-        oversold = int((rsi < RSI_OVERSOLD).sum())
-        overbought = int((rsi > RSI_OVERBOUGHT).sum())
+        oversold = count_zone_crossovers(rsi, RSI_OVERSOLD, oversold=True)
+        overbought = count_zone_crossovers(rsi, RSI_OVERBOUGHT, oversold=False)
 
         total_bars += bars
         total_oversold += oversold
