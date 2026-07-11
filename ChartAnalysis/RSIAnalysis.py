@@ -42,8 +42,8 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE     = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE       = "30-Jun-2026"   # format: DD-Mon-YYYY
+START_DATE     = "01-Jul-2026"   # format: DD-Mon-YYYY
+END_DATE       = "10-Jul-2026"   # format: DD-Mon-YYYY
 
 INTERVAL       = "1minute"       # candle size fetched from Breeze
 RSI_PERIOD     = 14              # RSI lookback (in 1-minute bars)
