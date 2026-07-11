@@ -70,7 +70,8 @@ def main() -> None:
     header = (
         f"{'Date':<12} {'Day':<10} {'Bars':>5} "
         f"{'RSI<' + str(int(RSI_OVERSOLD)):>8} "
-        f"{'RSI>' + str(int(RSI_OVERBOUGHT)):>8}"
+        f"{'RSI>' + str(int(RSI_OVERBOUGHT)):>8} "
+        f"{'Open':>10} {'Close':>10} {'%Chg':>8}"
     )
     print(header)
     print("-" * len(header))
@@ -101,9 +102,14 @@ def main() -> None:
         total_overbought += overbought
         days_with_data += 1
 
+        day_open = float(candles[0]["open"])
+        day_close = float(candles[-1]["close"])
+        pct_change = (day_close - day_open) / day_open * 100
+
         print(
             f"{day.strftime('%d-%b-%Y'):<12} {day.strftime('%A'):<10} "
-            f"{bars:>5} {oversold:>8} {overbought:>8}"
+            f"{bars:>5} {oversold:>8} {overbought:>8} "
+            f"{day_open:>10.2f} {day_close:>10.2f} {pct_change:>+8.2f}"
         )
 
     print("-" * len(header))
