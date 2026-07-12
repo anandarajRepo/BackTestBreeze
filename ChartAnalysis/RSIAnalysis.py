@@ -4,15 +4,16 @@ Nifty 50 Index — Intraday RSI Extremes Analysis (1-minute data)
 
 Fetches 1-minute Nifty 50 spot (cash) candles for every trading day in the
 configured window, computes RSI on the 1-minute closes, and reports — day by
-day — how many crossover events occurred with:
+day — two measures for each extreme zone:
 
   - RSI < 30  (oversold)
   - RSI > 70  (overbought)
 
-Each excursion into an extreme zone is counted as ONE crossover, no matter
-how many bars it lasts: e.g. once RSI drops below 30, the whole stretch until
-it crosses back above 30 counts as a single oversold event. The same applies
-to stretches above 70.
+Bars:   how many 1-minute bars closed inside the zone.
+Events: how many crossover events occurred. Each excursion into an extreme
+zone is counted as ONE crossover, no matter how many bars it lasts: e.g. once
+RSI drops below 30, the whole stretch until it crosses back above 30 counts
+as a single oversold event. The same applies to stretches above 70.
 
 Data retrieval follows the same pattern as the BackTestScripts/
 WeeklyOptionsSeconds scripts: a Breeze session is created from .env
@@ -94,16 +95,20 @@ def main() -> None:
         f"Nifty 50 — 1-minute RSI({RSI_PERIOD}) extremes, "
         f"{START_DATE} to {END_DATE}\n"
     )
+    os_label = f"RSI<{int(RSI_OVERSOLD)}"
+    ob_label = f"RSI>{int(RSI_OVERBOUGHT)}"
     header = (
         f"{'Date':<12} {'Day':<10} {'Bars':>5} "
-        f"{'RSI<' + str(int(RSI_OVERSOLD)):>8} "
-        f"{'RSI>' + str(int(RSI_OVERBOUGHT)):>8} "
+        f"{os_label + ' bars':>13} {os_label + ' evts':>13} "
+        f"{ob_label + ' bars':>13} {ob_label + ' evts':>13} "
         f"{'Open':>10} {'Close':>10} {'%Chg':>8}"
     )
     print(header)
     print("-" * len(header))
 
-    total_bars = total_oversold = total_overbought = 0
+    total_bars = 0
+    total_oversold_bars = total_oversold = 0
+    total_overbought_bars = total_overbought = 0
     days_with_data = 0
 
     # Fetch one trading day at a time: a full 1-minute session is 375 bars,
@@ -121,11 +126,15 @@ def main() -> None:
         rsi = rsi_df["rsi"].dropna()
 
         bars = len(rsi_df)
+        oversold_bars = int((rsi < RSI_OVERSOLD).sum())
+        overbought_bars = int((rsi > RSI_OVERBOUGHT).sum())
         oversold = count_zone_crossovers(rsi, RSI_OVERSOLD, oversold=True)
         overbought = count_zone_crossovers(rsi, RSI_OVERBOUGHT, oversold=False)
 
         total_bars += bars
+        total_oversold_bars += oversold_bars
         total_oversold += oversold
+        total_overbought_bars += overbought_bars
         total_overbought += overbought
         days_with_data += 1
 
@@ -135,14 +144,16 @@ def main() -> None:
 
         print(
             f"{day.strftime('%d-%b-%Y'):<12} {day.strftime('%A'):<10} "
-            f"{bars:>5} {oversold:>8} {overbought:>8} "
+            f"{bars:>5} {oversold_bars:>13} {oversold:>13} "
+            f"{overbought_bars:>13} {overbought:>13} "
             f"{day_open:>10.2f} {day_close:>10.2f} {pct_change:>+8.2f}"
         )
 
     print("-" * len(header))
     print(
         f"{'TOTAL':<12} {str(days_with_data) + ' days':<10} "
-        f"{total_bars:>5} {total_oversold:>8} {total_overbought:>8}"
+        f"{total_bars:>5} {total_oversold_bars:>13} {total_oversold:>13} "
+        f"{total_overbought_bars:>13} {total_overbought:>13}"
     )
 
 
