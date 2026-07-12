@@ -125,9 +125,12 @@ def format_crossover_events(events) -> str:
     """Render events as '1st-RSI<30-3mins-9:45-9:48, 2nd-RSI>70-6mins-10:12-10:20'."""
     parts = []
     for i, event in enumerate(sorted(events, key=lambda e: e["start"]), start=1):
+        # f-string formatting instead of strftime('%-H:%M'): the '-' (no-pad)
+        # modifier is a glibc extension and raises ValueError on Windows.
+        start, end = event["start"], event["end"]
         parts.append(
             f"{_ordinal(i)}-{event['label']}-{event['duration']}mins-"
-            f"{event['start'].strftime('%-H:%M')}-{event['end'].strftime('%-H:%M')}"
+            f"{start.hour}:{start.minute:02d}-{end.hour}:{end.minute:02d}"
         )
     return ", ".join(parts) if parts else "none"
 
