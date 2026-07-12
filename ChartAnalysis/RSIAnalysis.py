@@ -85,6 +85,53 @@ def count_zone_crossovers(rsi, threshold: float, oversold: bool) -> int:
     return count
 
 
+def zone_crossover_events(rsi_df, threshold: float, oversold: bool, label: str):
+    """Collect each excursion of RSI into an extreme zone with its timing.
+
+    Returns a list of dicts, one per event: the zone ``label``, the datetime
+    of the first bar inside the zone (``start``), the datetime of the bar
+    where RSI crossed back out — or the last bar if the excursion never
+    closed (``end``) — and the ``duration`` in minutes between the two.
+    """
+    df = rsi_df.dropna(subset=["rsi"])
+    rsi = df["rsi"]
+    in_zone = (rsi < threshold) if oversold else (rsi > threshold)
+
+    events = []
+    start_ts = None
+    for ts, flag in zip(df["datetime"], in_zone):
+        if flag and start_ts is None:
+            start_ts = ts              # entered the zone: start of one event
+        elif not flag and start_ts is not None:
+            events.append({"label": label, "start": start_ts, "end": ts})
+            start_ts = None            # crossed back out: event completed
+    if start_ts is not None:           # session ended while still in the zone
+        events.append({"label": label, "start": start_ts, "end": df["datetime"].iloc[-1]})
+
+    for event in events:
+        event["duration"] = int((event["end"] - event["start"]).total_seconds() // 60)
+    return events
+
+
+def _ordinal(n: int) -> str:
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def format_crossover_events(events) -> str:
+    """Render events as '1st-RSI<30-3mins-9:45-9:48, 2nd-RSI>70-6mins-10:12-10:20'."""
+    parts = []
+    for i, event in enumerate(sorted(events, key=lambda e: e["start"]), start=1):
+        parts.append(
+            f"{_ordinal(i)}-{event['label']}-{event['duration']}mins-"
+            f"{event['start'].strftime('%-H:%M')}-{event['end'].strftime('%-H:%M')}"
+        )
+    return ", ".join(parts) if parts else "none"
+
+
 def main() -> None:
     service = NiftyOptionService(breeze)
 
@@ -101,7 +148,8 @@ def main() -> None:
         f"{'Date':<12} {'Day':<10} {'Bars':>5} "
         f"{os_label + ' bars':>13} {os_label + ' evts':>13} "
         f"{ob_label + ' bars':>13} {ob_label + ' evts':>13} "
-        f"{'Open':>10} {'Close':>10} {'%Chg':>8}"
+        f"{'Open':>10} {'Close':>10} {'%Chg':>8}  "
+        f"{'Duration and time of crossover'}"
     )
     print(header)
     print("-" * len(header))
@@ -130,6 +178,8 @@ def main() -> None:
         overbought_bars = int((rsi > RSI_OVERBOUGHT).sum())
         oversold = count_zone_crossovers(rsi, RSI_OVERSOLD, oversold=True)
         overbought = count_zone_crossovers(rsi, RSI_OVERBOUGHT, oversold=False)
+        events = zone_crossover_events(rsi_df, RSI_OVERSOLD, True, os_label)
+        events += zone_crossover_events(rsi_df, RSI_OVERBOUGHT, False, ob_label)
 
         total_bars += bars
         total_oversold_bars += oversold_bars
@@ -146,7 +196,8 @@ def main() -> None:
             f"{day.strftime('%d-%b-%Y'):<12} {day.strftime('%A'):<10} "
             f"{bars:>5} {oversold_bars:>13} {oversold:>13} "
             f"{overbought_bars:>13} {overbought:>13} "
-            f"{day_open:>10.2f} {day_close:>10.2f} {pct_change:>+8.2f}"
+            f"{day_open:>10.2f} {day_close:>10.2f} {pct_change:>+8.2f}  "
+            f"{format_crossover_events(events)}"
         )
 
     print("-" * len(header))
