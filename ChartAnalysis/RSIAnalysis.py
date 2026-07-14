@@ -113,26 +113,33 @@ def zone_crossover_events(rsi_df, threshold: float, oversold: bool, label: str):
     return events
 
 
-def _ordinal(n: int) -> str:
-    if 10 <= n % 100 <= 20:
-        suffix = "th"
-    else:
-        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
-    return f"{n}{suffix}"
+EVENTS_PER_LINE = 6   # crossover events shown per output line before wrapping
 
 
-def format_crossover_events(events) -> str:
-    """Render events as '1st-RSI<30-3mins-9:45-9:48, 2nd-RSI>70-6mins-10:12-10:20'."""
+def format_crossover_events(events, indent: int) -> str:
+    """Render events as 'Hi 9:40-9:41 (1m) | Lo 13:05-13:07 (2m) | ...'.
+
+    'Hi' marks an overbought excursion (RSI above the upper threshold),
+    'Lo' an oversold one. Long lists wrap onto continuation lines aligned
+    under the column, ``EVENTS_PER_LINE`` events per line.
+    """
     parts = []
-    for i, event in enumerate(sorted(events, key=lambda e: e["start"]), start=1):
+    for event in sorted(events, key=lambda e: e["start"]):
         # f-string formatting instead of strftime('%-H:%M'): the '-' (no-pad)
         # modifier is a glibc extension and raises ValueError on Windows.
         start, end = event["start"], event["end"]
+        zone = "Lo" if "<" in event["label"] else "Hi"
         parts.append(
-            f"{_ordinal(i)}-{event['label']}-{event['duration']}mins-"
-            f"{start.hour}:{start.minute:02d}-{end.hour}:{end.minute:02d}"
+            f"{zone} {start.hour}:{start.minute:02d}-{end.hour}:{end.minute:02d}"
+            f" ({event['duration']}m)"
         )
-    return ", ".join(parts) if parts else "none"
+    if not parts:
+        return "none"
+    lines = [
+        " | ".join(parts[i:i + EVENTS_PER_LINE])
+        for i in range(0, len(parts), EVENTS_PER_LINE)
+    ]
+    return ("\n" + " " * indent).join(lines)
 
 
 def main() -> None:
@@ -152,8 +159,11 @@ def main() -> None:
         f"{os_label + ' bars':>13} {os_label + ' evts':>13} "
         f"{ob_label + ' bars':>13} {ob_label + ' evts':>13} "
         f"{'Open':>10} {'Close':>10} {'%Chg':>8}  "
-        f"{'Duration and time of crossover'}"
+        f"Crossovers (Hi=RSI>{int(RSI_OVERBOUGHT)}, Lo=RSI<{int(RSI_OVERSOLD)})"
     )
+    # Width of everything before the crossovers column, so wrapped
+    # continuation lines align under it.
+    events_indent = len(header) - len(f"Crossovers (Hi=RSI>{int(RSI_OVERBOUGHT)}, Lo=RSI<{int(RSI_OVERSOLD)})")
     print(header)
     print("-" * len(header))
 
@@ -200,7 +210,7 @@ def main() -> None:
             f"{bars:>5} {oversold_bars:>13} {oversold:>13} "
             f"{overbought_bars:>13} {overbought:>13} "
             f"{day_open:>10.2f} {day_close:>10.2f} {pct_change:>+8.2f}  "
-            f"{format_crossover_events(events)}"
+            f"{format_crossover_events(events, events_indent)}"
         )
 
     print("-" * len(header))
