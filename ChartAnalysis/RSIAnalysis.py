@@ -92,9 +92,9 @@ def zone_crossover_events(rsi_df, threshold: float, oversold: bool, label: str):
     of the first bar inside the zone (``start``), the datetime of the bar
     where RSI crossed back out — or the last bar if the excursion never
     closed (``end``) — the close price at each of those bars (``entry_price``
-    and ``exit_price``), the highest and lowest close seen from entry through
-    exit (``highest_price`` and ``lowest_price``), and the ``duration`` in
-    minutes between the two.
+    and ``exit_price``), the highest bar high and lowest bar low seen from
+    entry through exit (``highest_price`` and ``lowest_price``), and the
+    ``duration`` in minutes between the two.
     """
     df = rsi_df.dropna(subset=["rsi"])
     rsi = df["rsi"]
@@ -102,12 +102,14 @@ def zone_crossover_events(rsi_df, threshold: float, oversold: bool, label: str):
 
     events = []
     start_ts = start_px = hi_px = lo_px = None
-    for ts, px, flag in zip(df["datetime"], df["close"], in_zone):
+    for ts, px, bar_hi, bar_lo, flag in zip(
+        df["datetime"], df["close"], df["high"], df["low"], in_zone
+    ):
         if flag and start_ts is None:
             start_ts, start_px = ts, px    # entered the zone: start of one event
-            hi_px = lo_px = px
+            hi_px, lo_px = bar_hi, bar_lo
         elif start_ts is not None:
-            hi_px, lo_px = max(hi_px, px), min(lo_px, px)
+            hi_px, lo_px = max(hi_px, bar_hi), min(lo_px, bar_lo)
             if not flag:
                 events.append({
                     "label": label, "start": start_ts, "end": ts,
@@ -137,7 +139,7 @@ def format_crossover_events(events, indent: int = CHILD_INDENT) -> str:
     'Hi' marks an overbought excursion (RSI above the upper threshold),
     'Lo' an oversold one. Each event is one table row showing its entry and
     exit time, duration, the close price at entry and exit, and the highest
-    and lowest close seen during the excursion, e.g.:
+    bar high and lowest bar low seen during the excursion, e.g.:
 
         Crossovers (Hi=RSI>70, Lo=RSI<30):
           Zone   Entry    Exit     Dur    Entry Px    Exit Px    High Px     Low Px     %Chg
