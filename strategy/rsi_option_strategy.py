@@ -38,12 +38,14 @@ _MAX_TRADES_PER_DAY = 5
 def compute_rsi(candles: list[dict], period: int = 14) -> pd.DataFrame:
     """
     Compute RSI from a list of OHLC dicts.
-    Returns a DataFrame with columns: datetime, close, rsi.
+    Returns a DataFrame with columns: datetime, close, high, low, rsi.
     """
     df = pd.DataFrame(candles)
     df["datetime"] = pd.to_datetime(df["datetime"])
     df = df.sort_values("datetime").reset_index(drop=True)
     df["close"] = df["close"].astype(float)
+    df["high"] = df["high"].astype(float)
+    df["low"] = df["low"].astype(float)
 
     delta = df["close"].diff()
     gain  = delta.clip(lower=0)
@@ -55,7 +57,7 @@ def compute_rsi(candles: list[dict], period: int = 14) -> pd.DataFrame:
     rs  = avg_gain / avg_loss.replace(0, float("nan"))
     rsi = 100 - (100 / (1 + rs))
 
-    result = df[["datetime", "close"]].copy()
+    result = df[["datetime", "close", "high", "low"]].copy()
     result["rsi"] = rsi.round(4)
     return result
 
