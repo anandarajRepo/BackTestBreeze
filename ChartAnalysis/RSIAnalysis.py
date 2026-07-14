@@ -113,15 +113,19 @@ def zone_crossover_events(rsi_df, threshold: float, oversold: bool, label: str):
     return events
 
 
-EVENTS_PER_LINE = 6   # crossover events shown per output line before wrapping
+EVENTS_PER_LINE = 4   # crossover events shown per child-table row
+CHILD_INDENT = 4      # spaces the child table is indented under its parent row
 
 
-def format_crossover_events(events, indent: int) -> str:
-    """Render events as 'Hi 9:40-9:41 (1m) | Lo 13:05-13:07 (2m) | ...'.
+def format_crossover_events(events, indent: int = CHILD_INDENT) -> str:
+    """Render events as a small child table printed under the day's row.
 
     'Hi' marks an overbought excursion (RSI above the upper threshold),
-    'Lo' an oversold one. Long lists wrap onto continuation lines aligned
-    under the column, ``EVENTS_PER_LINE`` events per line.
+    'Lo' an oversold one. Events are laid out ``EVENTS_PER_LINE`` per row
+    in fixed-width cells, indented ``indent`` spaces, e.g.:
+
+        Crossovers (Hi=RSI>70, Lo=RSI<30):
+          Hi  9:40-9:41   (1m)    Hi  9:55-9:57   (2m)    ...
     """
     parts = []
     for event in sorted(events, key=lambda e: e["start"]):
@@ -130,16 +134,22 @@ def format_crossover_events(events, indent: int) -> str:
         start, end = event["start"], event["end"]
         zone = "Lo" if "<" in event["label"] else "Hi"
         parts.append(
-            f"{zone} {start.hour}:{start.minute:02d}-{end.hour}:{end.minute:02d}"
+            f"{zone} {start.hour:>2}:{start.minute:02d}-{end.hour}:{end.minute:02d}"
             f" ({event['duration']}m)"
         )
+    pad = " " * indent
+    title = (
+        f"{pad}Crossovers (Hi=RSI>{int(RSI_OVERBOUGHT)}, "
+        f"Lo=RSI<{int(RSI_OVERSOLD)}):"
+    )
     if not parts:
-        return "none"
+        return f"{title} none"
+    cell_width = max(len(p) for p in parts) + 3
     lines = [
-        " | ".join(parts[i:i + EVENTS_PER_LINE])
+        (pad + "  ") + "".join(p.ljust(cell_width) for p in parts[i:i + EVENTS_PER_LINE]).rstrip()
         for i in range(0, len(parts), EVENTS_PER_LINE)
     ]
-    return ("\n" + " " * indent).join(lines)
+    return "\n".join([title] + lines)
 
 
 def main() -> None:
@@ -158,12 +168,8 @@ def main() -> None:
         f"{'Date':<12} {'Day':<10} {'Bars':>5} "
         f"{os_label + ' bars':>13} {os_label + ' evts':>13} "
         f"{ob_label + ' bars':>13} {ob_label + ' evts':>13} "
-        f"{'Open':>10} {'Close':>10} {'%Chg':>8}  "
-        f"Crossovers (Hi=RSI>{int(RSI_OVERBOUGHT)}, Lo=RSI<{int(RSI_OVERSOLD)})"
+        f"{'Open':>10} {'Close':>10} {'%Chg':>8}"
     )
-    # Width of everything before the crossovers column, so wrapped
-    # continuation lines align under it.
-    events_indent = len(header) - len(f"Crossovers (Hi=RSI>{int(RSI_OVERBOUGHT)}, Lo=RSI<{int(RSI_OVERSOLD)})")
     print(header)
     print("-" * len(header))
 
@@ -209,9 +215,11 @@ def main() -> None:
             f"{day.strftime('%d-%b-%Y'):<12} {day.strftime('%A'):<10} "
             f"{bars:>5} {oversold_bars:>13} {oversold:>13} "
             f"{overbought_bars:>13} {overbought:>13} "
-            f"{day_open:>10.2f} {day_close:>10.2f} {pct_change:>+8.2f}  "
-            f"{format_crossover_events(events, events_indent)}"
+            f"{day_open:>10.2f} {day_close:>10.2f} {pct_change:>+8.2f}"
         )
+        # Child table: the day's crossover events, indented under its row.
+        print(format_crossover_events(events))
+        print()
 
     print("-" * len(header))
     print(
