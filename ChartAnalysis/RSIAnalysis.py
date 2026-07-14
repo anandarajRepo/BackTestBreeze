@@ -91,29 +91,35 @@ def zone_crossover_events(rsi_df, threshold: float, oversold: bool, label: str):
     Returns a list of dicts, one per event: the zone ``label``, the datetime
     of the first bar inside the zone (``start``), the datetime of the bar
     where RSI crossed back out — or the last bar if the excursion never
-    closed (``end``) — and the ``duration`` in minutes between the two.
+    closed (``end``) — the close price at each of those bars (``entry_price``
+    and ``exit_price``), and the ``duration`` in minutes between the two.
     """
     df = rsi_df.dropna(subset=["rsi"])
     rsi = df["rsi"]
     in_zone = (rsi < threshold) if oversold else (rsi > threshold)
 
     events = []
-    start_ts = None
-    for ts, flag in zip(df["datetime"], in_zone):
+    start_ts = start_px = None
+    for ts, px, flag in zip(df["datetime"], df["close"], in_zone):
         if flag and start_ts is None:
-            start_ts = ts              # entered the zone: start of one event
+            start_ts, start_px = ts, px    # entered the zone: start of one event
         elif not flag and start_ts is not None:
-            events.append({"label": label, "start": start_ts, "end": ts})
-            start_ts = None            # crossed back out: event completed
-    if start_ts is not None:           # session ended while still in the zone
-        events.append({"label": label, "start": start_ts, "end": df["datetime"].iloc[-1]})
+            events.append({
+                "label": label, "start": start_ts, "end": ts,
+                "entry_price": float(start_px), "exit_price": float(px),
+            })
+            start_ts = start_px = None     # crossed back out: event completed
+    if start_ts is not None:               # session ended while still in the zone
+        events.append({
+            "label": label, "start": start_ts, "end": df["datetime"].iloc[-1],
+            "entry_price": float(start_px), "exit_price": float(df["close"].iloc[-1]),
+        })
 
     for event in events:
         event["duration"] = int((event["end"] - event["start"]).total_seconds() // 60)
     return events
 
 
-EVENTS_PER_LINE = 4   # crossover events shown per child-table row
 CHILD_INDENT = 4      # spaces the child table is indented under its parent row
 
 
@@ -121,35 +127,43 @@ def format_crossover_events(events, indent: int = CHILD_INDENT) -> str:
     """Render events as a small child table printed under the day's row.
 
     'Hi' marks an overbought excursion (RSI above the upper threshold),
-    'Lo' an oversold one. Events are laid out ``EVENTS_PER_LINE`` per row
-    in fixed-width cells, indented ``indent`` spaces, e.g.:
+    'Lo' an oversold one. Each event is one table row showing its entry and
+    exit time, duration, and the close price at entry and exit, e.g.:
 
         Crossovers (Hi=RSI>70, Lo=RSI<30):
-          Hi  9:40-9:41   (1m)    Hi  9:55-9:57   (2m)    ...
+          Zone   Entry    Exit     Dur    Entry Px    Exit Px     %Chg
+          ------------------------------------------------------------
+          Hi      9:40    9:41      1m    23920.10   23925.30    +0.02
     """
-    parts = []
-    for event in sorted(events, key=lambda e: e["start"]):
-        # f-string formatting instead of strftime('%-H:%M'): the '-' (no-pad)
-        # modifier is a glibc extension and raises ValueError on Windows.
-        start, end = event["start"], event["end"]
-        zone = "Lo" if "<" in event["label"] else "Hi"
-        parts.append(
-            f"{zone} {start.hour:>2}:{start.minute:02d}-{end.hour}:{end.minute:02d}"
-            f" ({event['duration']}m)"
-        )
     pad = " " * indent
     title = (
         f"{pad}Crossovers (Hi=RSI>{int(RSI_OVERBOUGHT)}, "
         f"Lo=RSI<{int(RSI_OVERSOLD)}):"
     )
-    if not parts:
+    if not events:
         return f"{title} none"
-    cell_width = max(len(p) for p in parts) + 3
-    lines = [
-        (pad + "  ") + "".join(p.ljust(cell_width) for p in parts[i:i + EVENTS_PER_LINE]).rstrip()
-        for i in range(0, len(parts), EVENTS_PER_LINE)
-    ]
-    return "\n".join([title] + lines)
+
+    inner = pad + "  "
+    header = (
+        f"{inner}{'Zone':<4} {'Entry':>6}  {'Exit':>6}  {'Dur':>5} "
+        f"{'Entry Px':>11} {'Exit Px':>10} {'%Chg':>8}"
+    )
+    lines = [title, header, inner + "-" * (len(header) - len(inner))]
+    for event in sorted(events, key=lambda e: e["start"]):
+        # f-string formatting instead of strftime('%-H:%M'): the '-' (no-pad)
+        # modifier is a glibc extension and raises ValueError on Windows.
+        start, end = event["start"], event["end"]
+        zone = "Lo" if "<" in event["label"] else "Hi"
+        entry_px, exit_px = event["entry_price"], event["exit_price"]
+        pct = (exit_px - entry_px) / entry_px * 100
+        entry_t = f"{start.hour}:{start.minute:02d}"
+        exit_t = f"{end.hour}:{end.minute:02d}"
+        dur = f"{event['duration']}m"
+        lines.append(
+            f"{inner}{zone:<4} {entry_t:>6}  {exit_t:>6}  {dur:>5} "
+            f"{entry_px:>11.2f} {exit_px:>10.2f} {pct:>+8.2f}"
+        )
+    return "\n".join(lines)
 
 
 def main() -> None:
