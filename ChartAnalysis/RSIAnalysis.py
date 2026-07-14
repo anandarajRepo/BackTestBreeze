@@ -92,27 +92,35 @@ def zone_crossover_events(rsi_df, threshold: float, oversold: bool, label: str):
     of the first bar inside the zone (``start``), the datetime of the bar
     where RSI crossed back out — or the last bar if the excursion never
     closed (``end``) — the close price at each of those bars (``entry_price``
-    and ``exit_price``), and the ``duration`` in minutes between the two.
+    and ``exit_price``), the highest and lowest close seen from entry through
+    exit (``highest_price`` and ``lowest_price``), and the ``duration`` in
+    minutes between the two.
     """
     df = rsi_df.dropna(subset=["rsi"])
     rsi = df["rsi"]
     in_zone = (rsi < threshold) if oversold else (rsi > threshold)
 
     events = []
-    start_ts = start_px = None
+    start_ts = start_px = hi_px = lo_px = None
     for ts, px, flag in zip(df["datetime"], df["close"], in_zone):
         if flag and start_ts is None:
             start_ts, start_px = ts, px    # entered the zone: start of one event
-        elif not flag and start_ts is not None:
-            events.append({
-                "label": label, "start": start_ts, "end": ts,
-                "entry_price": float(start_px), "exit_price": float(px),
-            })
-            start_ts = start_px = None     # crossed back out: event completed
+            hi_px = lo_px = px
+        elif start_ts is not None:
+            hi_px, lo_px = max(hi_px, px), min(lo_px, px)
+            if not flag:
+                events.append({
+                    "label": label, "start": start_ts, "end": ts,
+                    "entry_price": float(start_px), "exit_price": float(px),
+                    "highest_price": float(hi_px), "lowest_price": float(lo_px),
+                })
+                start_ts = start_px = hi_px = lo_px = None  # event completed
     if start_ts is not None:               # session ended while still in the zone
+        last_px = df["close"].iloc[-1]
         events.append({
             "label": label, "start": start_ts, "end": df["datetime"].iloc[-1],
-            "entry_price": float(start_px), "exit_price": float(df["close"].iloc[-1]),
+            "entry_price": float(start_px), "exit_price": float(last_px),
+            "highest_price": float(hi_px), "lowest_price": float(lo_px),
         })
 
     for event in events:
@@ -128,12 +136,13 @@ def format_crossover_events(events, indent: int = CHILD_INDENT) -> str:
 
     'Hi' marks an overbought excursion (RSI above the upper threshold),
     'Lo' an oversold one. Each event is one table row showing its entry and
-    exit time, duration, and the close price at entry and exit, e.g.:
+    exit time, duration, the close price at entry and exit, and the highest
+    and lowest close seen during the excursion, e.g.:
 
         Crossovers (Hi=RSI>70, Lo=RSI<30):
-          Zone   Entry    Exit     Dur    Entry Px    Exit Px     %Chg
-          ------------------------------------------------------------
-          Hi      9:40    9:41      1m    23920.10   23925.30    +0.02
+          Zone   Entry    Exit     Dur    Entry Px    Exit Px    High Px     Low Px     %Chg
+          ------------------------------------------------------------------------------------
+          Hi      9:40    9:41      1m    23920.10   23925.30   23928.45   23918.20    +0.02
     """
     pad = " " * indent
     title = (
@@ -146,7 +155,7 @@ def format_crossover_events(events, indent: int = CHILD_INDENT) -> str:
     inner = pad + "  "
     header = (
         f"{inner}{'Zone':<4} {'Entry':>6}  {'Exit':>6}  {'Dur':>5} "
-        f"{'Entry Px':>11} {'Exit Px':>10} {'%Chg':>8}"
+        f"{'Entry Px':>11} {'Exit Px':>10} {'High Px':>10} {'Low Px':>10} {'%Chg':>8}"
     )
     lines = [title, header, inner + "-" * (len(header) - len(inner))]
     for event in sorted(events, key=lambda e: e["start"]):
@@ -155,13 +164,14 @@ def format_crossover_events(events, indent: int = CHILD_INDENT) -> str:
         start, end = event["start"], event["end"]
         zone = "Lo" if "<" in event["label"] else "Hi"
         entry_px, exit_px = event["entry_price"], event["exit_price"]
+        hi_px, lo_px = event["highest_price"], event["lowest_price"]
         pct = (exit_px - entry_px) / entry_px * 100
         entry_t = f"{start.hour}:{start.minute:02d}"
         exit_t = f"{end.hour}:{end.minute:02d}"
         dur = f"{event['duration']}m"
         lines.append(
             f"{inner}{zone:<4} {entry_t:>6}  {exit_t:>6}  {dur:>5} "
-            f"{entry_px:>11.2f} {exit_px:>10.2f} {pct:>+8.2f}"
+            f"{entry_px:>11.2f} {exit_px:>10.2f} {hi_px:>10.2f} {lo_px:>10.2f} {pct:>+8.2f}"
         )
     return "\n".join(lines)
 
