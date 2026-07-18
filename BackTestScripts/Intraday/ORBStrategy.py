@@ -141,7 +141,7 @@ SYMBOLS = [
 
 # ── Strategy Configuration ────────────────────────────────────────────────────
 
-QUANTITY          = 1
+CAPITAL_PER_STOCK = 100_000  # Rs. allocated per trade; qty = floor(capital / entry)
 ORB_MINUTES       = 15       # Opening range period: 9:15–9:30 AM
 STOP_LOSS_PCT     = 1.5
 RISK_REWARD_RATIO = 2.0
@@ -190,7 +190,10 @@ class PortfolioTradeResult:
     stop_loss:       float
     exit_price:      float
     exit_reason:     str
+    quantity:        int
+    capital_used:    float
     pnl:             float
+    return_pct:      float
     breakout_time:   str
     momentum_score:  Optional[float] = None
     momentum_rank:   Optional[int]   = None
@@ -503,10 +506,19 @@ def run_portfolio_orb_backtest(
                 exit_price  = float(cand.post_orb_candles[cand.breakout_idx]["close"])
                 exit_reason = "close"
 
+            # Fixed-capital position sizing: Rs. CAPITAL_PER_STOCK per trade
+            quantity = int(CAPITAL_PER_STOCK // cand.entry)
+            if quantity < 1:
+                print(f"    [-] {cand.stock_code:<12} skipped — entry {cand.entry:.2f} "
+                      f"exceeds capital Rs.{CAPITAL_PER_STOCK:,}")
+                continue
+            capital_used = round(quantity * cand.entry, 2)
+
             if cand.direction == BreakoutDirection.BUY:
-                pnl = round((exit_price - cand.entry) * QUANTITY, 2)
+                pnl = round((exit_price - cand.entry) * quantity, 2)
             else:
-                pnl = round((cand.entry - exit_price) * QUANTITY, 2)
+                pnl = round((cand.entry - exit_price) * quantity, 2)
+            return_pct = round(pnl / capital_used * 100, 2)
 
             day_pnl += pnl
             day_stocks.append(cand.stock_code)
@@ -519,9 +531,9 @@ def run_portfolio_orb_backtest(
             print(
                 f"    [{rank}] {cand.stock_code:<12} {dir_label} @{bt_time}"
                 f"  ORB[{cand.orb.low:.2f}–{cand.orb.high:.2f}]"
-                f"  Entry {cand.entry:.2f}  T {target:.2f}  SL {stop_loss:.2f}"
+                f"  Entry {cand.entry:.2f} x{quantity}  T {target:.2f}  SL {stop_loss:.2f}"
                 f"  Exit {exit_price:.2f} [{exit_reason:10s}]"
-                f"  PnL {pnl_sign}{pnl:.2f}"
+                f"  PnL {pnl_sign}{pnl:.2f} ({pnl_sign}{return_pct:.2f}%)"
                 f"  Mom:{score:.0f}"
             )
 
@@ -536,7 +548,10 @@ def run_portfolio_orb_backtest(
                 stop_loss     = stop_loss,
                 exit_price    = exit_price,
                 exit_reason   = exit_reason,
+                quantity      = quantity,
+                capital_used  = capital_used,
                 pnl           = pnl,
+                return_pct    = return_pct,
                 breakout_time = cand.breakout_time,
                 momentum_score = momentum_score_map.get(cand.stock_code),
                 momentum_rank  = momentum_rank_map.get(cand.stock_code),
@@ -580,7 +595,7 @@ def print_final_report(results: list[PortfolioTradeResult]) -> None:
     print(f"  Period    : {START_DATE}  →  {END_DATE}")
     print(f"  Universe  : {len(SYMBOLS)} symbols  →  Top {TOP_N_STOCKS} by momentum")
     print(f"  ORB period: {ORB_MINUTES} min  |  SL: {STOP_LOSS_PCT}%  |  RR: 1:{RISK_REWARD_RATIO}")
-    print(f"  Max trades/day: {MAX_DAILY_TRADES}")
+    print(f"  Max trades/day: {MAX_DAILY_TRADES}  |  Capital/trade: Rs.{CAPITAL_PER_STOCK:,}")
     print(f"{'='*72}\n")
 
     print(f"  {'Stock':<14} {'Trades':>6} {'Wins':>5} {'Losses':>7} "
@@ -609,6 +624,12 @@ def print_final_report(results: list[PortfolioTradeResult]) -> None:
     )
     print(f"  Max win : {max(wins, default=0.0):.2f}   "
           f"Max loss: {min(losses, default=0.0):.2f}")
+
+    total_capital = round(sum(r.capital_used for r in results), 2)
+    overall_ret   = round(total / total_capital * 100, 2) if total_capital else 0.0
+    ret_sign      = "+" if overall_ret >= 0 else ""
+    print(f"  Capital deployed (sum of trades): Rs.{total_capital:,.2f}")
+    print(f"  Overall return on deployed capital: {ret_sign}{overall_ret:.2f}%")
     print(f"\n{'='*72}\n")
 
 
@@ -617,16 +638,18 @@ def save_csv(results: list[PortfolioTradeResult], path: str) -> None:
         writer = csv.writer(f)
         writer.writerow([
             "Date", "Stock", "Direction", "Momentum Rank", "Momentum Score",
-            "ORB High", "ORB Low", "Entry", "Target", "Stop Loss",
-            "Exit Price", "Exit Reason", "PnL", "Breakout Time",
+            "ORB High", "ORB Low", "Entry", "Quantity", "Capital Used",
+            "Target", "Stop Loss",
+            "Exit Price", "Exit Reason", "PnL", "Return %", "Breakout Time",
         ])
         for r in results:
             writer.writerow([
                 r.trade_date, r.stock_code, r.direction.value,
                 r.momentum_rank, r.momentum_score,
                 r.orb_high, r.orb_low, r.entry_price,
+                r.quantity, r.capital_used,
                 r.target, r.stop_loss, r.exit_price, r.exit_reason,
-                r.pnl, r.breakout_time,
+                r.pnl, r.return_pct, r.breakout_time,
             ])
     print(f"  CSV saved → {path}\n")
 
