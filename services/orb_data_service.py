@@ -20,22 +20,36 @@ class ORBDataService:
         end_date: str,
         interval: str = "1second",
     ) -> list[dict]:
-        """Fetch minute-level candles for the given date range."""
+        """Fetch minute-level candles for the given date range.
+
+        Breeze caps get_historical_data_v2 responses at 1000 records —
+        under three trading days of 1-minute candles — so the range is
+        fetched one calendar day at a time and concatenated.
+        """
         from_dt = datetime.strptime(start_date, "%d-%b-%Y %H:%M:%S")
         to_dt   = datetime.strptime(end_date,   "%d-%b-%Y %H:%M:%S")
 
-        resp = self.breeze.get_historical_data_v2(
-            interval=interval,
-            from_date=from_dt,
-            to_date=to_dt,
-            stock_code=stock_code,
-            exchange_code=exchange_code,
-            product_type="cash",
-        )
+        candles: list[dict] = []
+        day = from_dt
+        while day.date() <= to_dt.date():
+            chunk_from = max(day.replace(hour=0, minute=0, second=0), from_dt)
+            chunk_to   = min(day.replace(hour=23, minute=59, second=59), to_dt)
 
-        candles = resp.get("Success") or []
+            resp = self.breeze.get_historical_data_v2(
+                interval=interval,
+                from_date=chunk_from,
+                to_date=chunk_to,
+                stock_code=stock_code,
+                exchange_code=exchange_code,
+                product_type="cash",
+            )
+            # Empty days (weekends/holidays) are expected; skip silently.
+            candles.extend(resp.get("Success") or [])
+            day += timedelta(days=1)
+
         if not candles:
-            raise ValueError(f"No intraday data returned for {stock_code}: {resp}")
+            raise ValueError(f"No intraday data returned for {stock_code} "
+                             f"between {start_date} and {end_date}")
         return candles
 
     @staticmethod
