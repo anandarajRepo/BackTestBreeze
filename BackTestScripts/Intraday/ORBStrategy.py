@@ -1,13 +1,14 @@
 """
 ORB Portfolio Backtest — Momentum-ranked Open Range Breakout
 
-Flow per backtest run:
+Flow — repeated for EACH backtest day (as of the previous day's close, so no
+future data leaks into the pre-market filters):
   0. Pre-market: run trend direction analysis for Nifty 50 + all top stocks.
                  Only stocks whose trend aligns with the breakout direction are traded.
-  1. Score ALL symbols at once using MomentumScoringService.
+  1. Score ALL symbols using MomentumScoringService.
   2. Select top TOP_N_STOCKS by composite momentum score.
   3. Fetch 1-minute intraday data for each of those stocks.
-  4. For every trading day:
+  4. For that trading day:
        a. Compute the 15-minute opening range for each stock.
        b. Scan post-ORB candles for a breakout (high > ORB-high → BUY,
           low < ORB-low → SELL).
@@ -354,6 +355,8 @@ def run_portfolio_orb_backtest(
     trend_svc: Optional[TrendDirectionService],
     top_stocks: list[tuple[str, str, MomentumScore]],
     hist_trends: Optional[dict[str, TrendAnalysis]] = None,  # pre-computed from run_premarket_trend_analysis
+    start_date: str = START_DATE,
+    end_date: str = END_DATE,
 ) -> list[PortfolioTradeResult]:
     """
     For each trading day:
@@ -370,7 +373,7 @@ def run_portfolio_orb_backtest(
     for stock_code, exchange_code, ms in top_stocks:
         try:
             candles = orb_data_svc.get_intraday_candles(
-                stock_code, exchange_code, START_DATE, END_DATE, INTERVAL
+                stock_code, exchange_code, start_date, end_date, INTERVAL
             )
             stock_candles[stock_code] = ORBDataService.group_by_date(candles)
             print(f"  {stock_code:<12} — {sum(len(v) for v in stock_candles[stock_code].values())} candles "
@@ -663,25 +666,48 @@ if __name__ == "__main__" or True:
     orb_data_svc = ORBDataService(breeze)
     trend_svc    = TrendDirectionService(breeze) if ENABLE_TREND_FILTER else None
 
-    # Use end of the previous calendar day (23:59:59) so the Breeze API does
-    # not return a same-day daily candle whose timestamp is midnight of the
-    # start date — that candle has a stale/incorrect close and shifts ROC/RSI.
-    # FyersORB runs at ~09:10 so its to_date naturally falls before any Apr-30
-    # candle; this mirrors that behaviour for the backtest.
-    start_dt   = datetime.strptime(START_DATE, "%d-%b-%Y %H:%M:%S")
-    as_of_date = start_dt.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(seconds=1)
+    start_dt = datetime.strptime(START_DATE, "%d-%b-%Y %H:%M:%S")
+    end_dt   = datetime.strptime(END_DATE,   "%d-%b-%Y %H:%M:%S")
 
-    # Phase 1: Score all, select top N
-    top_stocks = score_all_and_select_top(
-        momentum_svc=momentum_svc,
-        symbols=unique_symbols,
-        as_of_date=as_of_date,
-        top_n=TOP_N_STOCKS,
-    )
+    all_results: list[PortfolioTradeResult] = []
 
-    if not top_stocks:
-        print("No stocks passed the momentum filter. Exiting.")
-    else:
+    # Run the full pre-market pipeline (momentum scoring + trend direction
+    # analysis) fresh for EVERY backtest day, exactly as FyersORB does live
+    # each morning — not just once for the whole window.
+    current = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    while current <= end_dt:
+        trade_day = current
+        current  += timedelta(days=1)
+
+        if trade_day.weekday() >= 5:  # skip Sat/Sun
+            continue
+
+        # Use end of the previous calendar day (23:59:59) so the Breeze API does
+        # not return a same-day daily candle whose timestamp is midnight of the
+        # trade day — that candle has a stale/incorrect close and shifts ROC/RSI.
+        # FyersORB runs at ~09:10 so its to_date naturally falls before any
+        # same-day candle; this mirrors that behaviour for each backtest day.
+        as_of_date = trade_day - timedelta(seconds=1)
+
+        day_start = trade_day.strftime("%d-%b-%Y") + " 9:15:00"
+        day_end   = trade_day.strftime("%d-%b-%Y") + " 15:29:59"
+
+        print(f"\n{'#'*70}")
+        print(f"#  BACKTEST DAY: {trade_day.date()}")
+        print(f"{'#'*70}")
+
+        # Phase 1: Score all, select top N (as of the previous day's close)
+        top_stocks = score_all_and_select_top(
+            momentum_svc=momentum_svc,
+            symbols=unique_symbols,
+            as_of_date=as_of_date,
+            top_n=TOP_N_STOCKS,
+        )
+
+        if not top_stocks:
+            print(f"  {trade_day.date()}: no stocks passed the momentum filter — skipping day.")
+            continue
+
         # Phase 1b: Pre-market trend direction analysis (mirrors FyersORB)
         hist_trends: Optional[dict] = None
         if trend_svc and ENABLE_TREND_FILTER:
@@ -695,13 +721,18 @@ if __name__ == "__main__" or True:
                 nifty_exchange    = NIFTY50_EXCHANGE,
             )
 
-        # Phase 2 & 3: ORB scan with daily cap
-        results = run_portfolio_orb_backtest(
+        # Phase 2 & 3: ORB scan with daily cap for this day only
+        day_results = run_portfolio_orb_backtest(
             orb_data_svc = orb_data_svc,
             trend_svc    = trend_svc,
             top_stocks   = top_stocks,
             hist_trends  = hist_trends,
+            start_date   = day_start,
+            end_date     = day_end,
         )
+        all_results.extend(day_results)
 
-        print_final_report(results)
-        save_csv(results, REPORT_CSV)
+    if not all_results:
+        print("No trades executed across the backtest window.")
+    print_final_report(all_results)
+    save_csv(all_results, REPORT_CSV)
