@@ -3,11 +3,22 @@ Buy-Open / Exit-Close intraday backtest.
 
 Strategy : Buy every trading day at the open price and exit the same day
            at the close (EOD) price.
-Universe : All indices defined in resources/indices.json.
-Report   : Per-index day-wise table (Date | Entry Price | Exit Price | PnL %)
-           followed by the total profit for each index.
+Universe : Indices from resources/indices.json and/or stock groups from
+           resources/stocks.json — choose with UNIVERSE / STOCK_GROUP below
+           or via command-line options.
+Report   : Per-instrument day-wise table (Date | Entry Price | Exit Price |
+           PnL %) followed by the total profit for each instrument.
+
+Usage:
+    python BuyOpenExitCloseStrategy.py                          # defaults below
+    python BuyOpenExitCloseStrategy.py --universe indices
+    python BuyOpenExitCloseStrategy.py --universe stocks
+    python BuyOpenExitCloseStrategy.py --universe stocks --group banking
+    python BuyOpenExitCloseStrategy.py --universe both
+    python BuyOpenExitCloseStrategy.py --list                   # show stock groups
 """
 
+import argparse
 import os
 from dataclasses import dataclass
 from datetime import datetime
@@ -15,18 +26,12 @@ from datetime import datetime
 from breeze_connect import BreezeConnect
 from dotenv import load_dotenv
 
-from resources.resource_loader import Index, load_indices
-
-load_dotenv()
-
-# ── Session ───────────────────────────────────────────────────────────────────
-
-breeze = BreezeConnect(api_key=os.getenv("BREEZE_API_KEY"))
-breeze.generate_session(
-    api_secret=os.getenv("BREEZE_API_SECRET"),
-    session_token=os.getenv("BREEZE_SESSION_TOKEN"),
+from resources.resource_loader import (
+    list_stock_files,
+    load_all_stocks,
+    load_indices,
+    load_stocks,
 )
-print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -34,6 +39,25 @@ START_DATE = "01-Jan-2026 9:15:00"
 END_DATE   = "30-Jun-2026 15:29:59"
 INTERVAL   = "30minute"
 TAKE_PROFIT_PCT = 1.0  # reset "Wait for x%" once cumulative PnL exceeds this
+
+# Default universe when no command-line options are given:
+#   UNIVERSE = "indices" → index definitions from resources/indices.json
+#   UNIVERSE = "stocks"  → stock lists from resources/stocks.json
+#   UNIVERSE = "both"    → indices followed by stocks
+# STOCK_GROUP narrows "stocks" to a single group (e.g. "banking", "it");
+# leave it as None to run every group.
+
+UNIVERSE    = "both"     # "indices" | "stocks" | "both"
+STOCK_GROUP = None       # e.g. "banking"; None = all groups
+
+
+@dataclass(frozen=True)
+class Instrument:
+    """A backtestable instrument: an index or a stock."""
+    name: str
+    breeze_code: str
+    exchange: str
+    product_type: str = "cash"
 
 
 @dataclass
@@ -46,15 +70,69 @@ class DayTrade:
     take_profit: bool
 
 
-def fetch_daily_candles(index: Index) -> list[dict]:
-    """Fetch daily OHLC candles for the index over the backtest period."""
+# ── Universe selection ────────────────────────────────────────────────────────
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument(
+        "--universe",
+        choices=("indices", "stocks", "both"),
+        default=UNIVERSE,
+        help=f"which resources to backtest (default: {UNIVERSE})",
+    )
+    parser.add_argument(
+        "--group",
+        default=STOCK_GROUP,
+        metavar="NAME",
+        help="restrict stocks to one group from stocks.json (e.g. banking); "
+             "default: all groups",
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="list the available stock groups and exit",
+    )
+    return parser.parse_args()
+
+
+def stock_instruments(group: str | None) -> list[Instrument]:
+    """Build instruments from stocks.json ('NSE:TCS-EQ' → TCS on NSE)."""
+    symbols = load_stocks(group) if group else load_all_stocks()
+    instruments = []
+    for symbol in symbols:
+        exchange, rest = symbol.split(":", 1)
+        code = rest.removesuffix("-EQ")
+        instruments.append(Instrument(name=symbol, breeze_code=code, exchange=exchange))
+    return instruments
+
+
+def index_instruments() -> list[Instrument]:
+    return [
+        Instrument(name=idx.name, breeze_code=idx.breeze_code, exchange=idx.exchange)
+        for idx in load_indices().values()
+    ]
+
+
+def load_universe(universe: str, group: str | None) -> list[Instrument]:
+    instruments: list[Instrument] = []
+    if universe in ("indices", "both"):
+        instruments += index_instruments()
+    if universe in ("stocks", "both"):
+        instruments += stock_instruments(group)
+    return instruments
+
+
+# ── Backtest ──────────────────────────────────────────────────────────────────
+
+def fetch_daily_candles(instrument: Instrument) -> list[dict]:
+    """Fetch OHLC candles for the instrument over the backtest period."""
     resp = breeze.get_historical_data_v2(
         interval=INTERVAL,
         from_date=datetime.strptime(START_DATE, "%d-%b-%Y %H:%M:%S"),
         to_date=datetime.strptime(END_DATE, "%d-%b-%Y %H:%M:%S"),
-        stock_code=index.breeze_code,
-        exchange_code=index.exchange,
-        product_type="cash",
+        stock_code=instrument.breeze_code,
+        exchange_code=instrument.exchange,
+        product_type=instrument.product_type,
     )
     candles = resp.get("Success") or []
     if not candles:
@@ -62,11 +140,11 @@ def fetch_daily_candles(index: Index) -> list[dict]:
     return candles
 
 
-def run_backtest(index: Index) -> list[DayTrade]:
+def run_backtest(instrument: Instrument) -> list[DayTrade]:
     """Buy at open, sell at close for every daily candle."""
     trades: list[DayTrade] = []
     cumulative = 0.0
-    for candle in fetch_daily_candles(index):
+    for candle in fetch_daily_candles(instrument):
         entry = float(candle["open"])
         exit_ = float(candle["close"])
         if entry <= 0:
@@ -84,8 +162,8 @@ def run_backtest(index: Index) -> list[DayTrade]:
     return trades
 
 
-def print_index_report(index: Index, trades: list[DayTrade]) -> float:
-    """Print the day-wise table for one index and return its total PnL %."""
+def print_instrument_report(instrument: Instrument, trades: list[DayTrade]) -> float:
+    """Print the day-wise table for one instrument and return its total PnL %."""
     header = (
         f"{'Date':<12} | {'Entry Price':>12} | {'Exit Price':>12} | {'PnL %':>8} | "
         f"{'Wait for x%':>12}"
@@ -93,7 +171,7 @@ def print_index_report(index: Index, trades: list[DayTrade]) -> float:
     sep = "-" * len(header)
 
     print(f"\n{'='*len(header)}")
-    print(f"  {index.name}  ({index.exchange}:{index.breeze_code})")
+    print(f"  {instrument.name}  ({instrument.exchange}:{instrument.breeze_code})")
     print(f"{'='*len(header)}")
     print(header)
     print(sep)
@@ -119,27 +197,58 @@ def print_index_report(index: Index, trades: list[DayTrade]) -> float:
     return total_pnl
 
 
-# ── Run ───────────────────────────────────────────────────────────────────────
-
-indices = list(load_indices().values())
-print(f"Running Buy-Open/Exit-Close backtest for {len(indices)} indices...")
-print(f"Period: {START_DATE}  →  {END_DATE}")
-
-totals: dict[str, float] = {}
-for index in indices:
-    try:
-        trades = run_backtest(index)
-        totals[index.name] = print_index_report(index, trades)
-    except Exception as exc:
-        print(f"\n  [ERROR] {index.name} ({index.exchange}:{index.breeze_code}): {exc}")
-
-if totals:
-    header = f"{'Index':<28} | {'Total Profit %':>14}"
+def print_summary(totals: dict[str, float]) -> None:
+    header = f"{'Instrument':<28} | {'Total Profit %':>14}"
     print(f"\n{'='*len(header)}")
-    print("  TOTAL PROFIT — INDEX-WISE SUMMARY")
+    print("  TOTAL PROFIT — INSTRUMENT-WISE SUMMARY")
     print(f"{'='*len(header)}")
     print(header)
     print("-" * len(header))
     for name, total in sorted(totals.items(), key=lambda kv: kv[1], reverse=True):
         print(f"{name:<28} | {'+' if total >= 0 else ''}{total:>13.2f}")
     print(f"{'='*len(header)}\n")
+
+
+# ── Run ───────────────────────────────────────────────────────────────────────
+
+def main() -> None:
+    args = parse_args()
+
+    if args.list:
+        print("Available stock groups:")
+        for name in list_stock_files():
+            print(f"  {name}")
+        return
+
+    instruments = load_universe(args.universe, args.group)
+
+    load_dotenv()
+    global breeze
+    breeze = BreezeConnect(api_key=os.getenv("BREEZE_API_KEY"))
+    breeze.generate_session(
+        api_secret=os.getenv("BREEZE_API_SECRET"),
+        session_token=os.getenv("BREEZE_SESSION_TOKEN"),
+    )
+    print("Session Generated Successfully\n")
+
+    scope = args.universe + (f" (group: {args.group})" if args.group else "")
+    print(f"Running Buy-Open/Exit-Close backtest for {len(instruments)} instruments [{scope}]...")
+    print(f"Period: {START_DATE}  →  {END_DATE}")
+
+    totals: dict[str, float] = {}
+    for instrument in instruments:
+        try:
+            trades = run_backtest(instrument)
+            totals[instrument.name] = print_instrument_report(instrument, trades)
+        except Exception as exc:
+            print(
+                f"\n  [ERROR] {instrument.name} "
+                f"({instrument.exchange}:{instrument.breeze_code}): {exc}"
+            )
+
+    if totals:
+        print_summary(totals)
+
+
+if __name__ == "__main__":
+    main()
