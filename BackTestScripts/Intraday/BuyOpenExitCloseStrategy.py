@@ -32,7 +32,7 @@ print("Session Generated Successfully\n")
 
 START_DATE = "01-Jan-2026 9:15:00"
 END_DATE   = "30-Jun-2026 15:29:59"
-INTERVAL   = "1day"
+INTERVAL   = "30minute"
 TAKE_PROFIT_PCT = 1.0  # reset "Wait for x%" once cumulative PnL exceeds this
 
 
