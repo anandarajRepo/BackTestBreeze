@@ -33,6 +33,7 @@ print("Session Generated Successfully\n")
 START_DATE = "01-Jan-2026 9:15:00"
 END_DATE   = "30-Jun-2026 15:29:59"
 INTERVAL   = "1day"
+TAKE_PROFIT_PCT = 1.0  # reset "Wait for x%" once cumulative PnL exceeds this
 
 
 @dataclass
@@ -41,6 +42,8 @@ class DayTrade:
     entry_price: float
     exit_price: float
     pnl_pct: float
+    wait_for_x_pct: float
+    take_profit: bool
 
 
 def fetch_daily_candles(index: Index) -> list[dict]:
@@ -62,6 +65,7 @@ def fetch_daily_candles(index: Index) -> list[dict]:
 def run_backtest(index: Index) -> list[DayTrade]:
     """Buy at open, sell at close for every daily candle."""
     trades: list[DayTrade] = []
+    cumulative = 0.0
     for candle in fetch_daily_candles(index):
         entry = float(candle["open"])
         exit_ = float(candle["close"])
@@ -69,13 +73,23 @@ def run_backtest(index: Index) -> list[DayTrade]:
             continue
         date_str = str(candle["datetime"]).split(" ")[0].split("T")[0]
         pnl_pct = round((exit_ - entry) / entry * 100, 2)
-        trades.append(DayTrade(date_str, entry, exit_, pnl_pct))
+
+        cumulative = round(cumulative + pnl_pct, 2)
+        take_profit = cumulative > TAKE_PROFIT_PCT
+        wait_for_x = cumulative
+        if take_profit:
+            cumulative = 0.0
+
+        trades.append(DayTrade(date_str, entry, exit_, pnl_pct, wait_for_x, take_profit))
     return trades
 
 
 def print_index_report(index: Index, trades: list[DayTrade]) -> float:
     """Print the day-wise table for one index and return its total PnL %."""
-    header = f"{'Date':<12} | {'Entry Price':>12} | {'Exit Price':>12} | {'PnL %':>8}"
+    header = (
+        f"{'Date':<12} | {'Entry Price':>12} | {'Exit Price':>12} | {'PnL %':>8} | "
+        f"{'Wait for x%':>12}"
+    )
     sep = "-" * len(header)
 
     print(f"\n{'='*len(header)}")
@@ -86,7 +100,13 @@ def print_index_report(index: Index, trades: list[DayTrade]) -> float:
 
     for t in trades:
         pnl_str = f"{'+' if t.pnl_pct >= 0 else ''}{t.pnl_pct:.2f}"
-        print(f"{t.date:<12} | {t.entry_price:>12.2f} | {t.exit_price:>12.2f} | {pnl_str:>8}")
+        wait_str = f"{'+' if t.wait_for_x_pct >= 0 else ''}{t.wait_for_x_pct:.2f}"
+        if t.take_profit:
+            wait_str += " TP"
+        print(
+            f"{t.date:<12} | {t.entry_price:>12.2f} | {t.exit_price:>12.2f} | "
+            f"{pnl_str:>8} | {wait_str:>12}"
+        )
 
     total_pnl = round(sum(t.pnl_pct for t in trades), 2)
     wins = sum(1 for t in trades if t.pnl_pct > 0)
