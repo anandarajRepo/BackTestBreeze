@@ -174,11 +174,13 @@ MAX_DAILY_TRADES = 3    # Maximum trades to take per calendar day
 
 # ── Momentum Scoring ──────────────────────────────────────────────────────────
 
+ENABLE_MOMENTUM_SCORING = False  # when False, ALL symbols are traded (no ranking/filtering)
 MIN_MOMENTUM_SCORE     = 50.0
 MOMENTUM_LOOKBACK_DAYS = 200  # needs ~157 trading days for Wilder RSI warmup to converge
 
 # ── Trend Filter ──────────────────────────────────────────────────────────────
 
+ENABLE_PREMARKET_TREND_ANALYSIS = False  # when False, skip pre-market trend direction analysis
 ENABLE_TREND_FILTER = True
 TREND_FILTER_MODE   = "STRICT"
 TREND_LOOKBACK_DAYS = 10
@@ -517,7 +519,7 @@ def score_all_and_select_top(
 def run_portfolio_orb_backtest(
     orb_data_svc: ORBDataService,
     trend_svc: Optional[TrendDirectionService],
-    top_stocks: list[tuple[str, str, MomentumScore]],
+    top_stocks: list[tuple[str, str, Optional[MomentumScore]]],
     hist_trends: Optional[dict[str, TrendAnalysis]] = None,  # pre-computed from run_premarket_trend_analysis
     start_date: str = START_DATE,
     end_date: str = END_DATE,
@@ -581,7 +583,7 @@ def run_portfolio_orb_backtest(
             print()
 
     momentum_rank_map = {sc: rank for rank, (sc, _, _) in enumerate(top_stocks, 1)}
-    momentum_score_map = {sc: ms.composite_score for sc, _, ms in top_stocks}
+    momentum_score_map = {sc: (ms.composite_score if ms else None) for sc, _, ms in top_stocks}
 
     all_results: list[PortfolioTradeResult] = []
     daily_summaries: list[DailySummary] = []
@@ -730,7 +732,7 @@ def run_portfolio_orb_backtest(
             dir_label = "BUY " if cand.direction == BreakoutDirection.BUY else "SELL"
             pnl_sign  = "+" if pnl >= 0 else ""
             rank      = momentum_rank_map.get(cand.stock_code, "?")
-            score     = momentum_score_map.get(cand.stock_code, 0.0)
+            score     = momentum_score_map.get(cand.stock_code) or 0.0
             fvg_label = (f"  FVG[{fvg_low:.2f}–{fvg_high:.2f}]"
                          if fvg_low is not None else "")
             partial_label = (f"  Partial {partial_quantity}@{partial_exit_price:.2f}"
@@ -805,7 +807,9 @@ def print_final_report(results: list[PortfolioTradeResult]) -> None:
     print(f"\n{'='*72}")
     print("  PORTFOLIO ORB BACKTEST — FINAL REPORT")
     print(f"  Period    : {START_DATE}  →  {END_DATE}")
-    print(f"  Universe  : {len(SYMBOLS)} symbols  →  Top {TOP_N_STOCKS} by momentum")
+    universe_note = (f"Top {TOP_N_STOCKS} by momentum" if ENABLE_MOMENTUM_SCORING
+                     else "all symbols (momentum scoring disabled)")
+    print(f"  Universe  : {len(SYMBOLS)} symbols  →  {universe_note}")
     print(f"  ORB period: {ORB_MINUTES} min  |  SL: {STOP_LOSS_PCT}%  |  RR: 1:{RISK_REWARD_RATIO}")
     print(f"  Max trades/day: {MAX_DAILY_TRADES}  |  Capital/trade: Rs.{CAPITAL_PER_STOCK:,}")
     print(f"{'='*72}\n")
@@ -910,13 +914,18 @@ if __name__ == "__main__" or True:
         print(f"#  BACKTEST DAY: {trade_day.date()}")
         print(f"{'#'*70}")
 
-        # Phase 1: Score all, select top N (as of the previous day's close)
-        top_stocks = score_all_and_select_top(
-            momentum_svc=momentum_svc,
-            symbols=unique_symbols,
-            as_of_date=as_of_date,
-            top_n=TOP_N_STOCKS,
-        )
+        # Phase 1: Score all, select top N (as of the previous day's close).
+        # When momentum scoring is disabled, trade the full universe unranked.
+        if ENABLE_MOMENTUM_SCORING:
+            top_stocks = score_all_and_select_top(
+                momentum_svc=momentum_svc,
+                symbols=unique_symbols,
+                as_of_date=as_of_date,
+                top_n=TOP_N_STOCKS,
+            )
+        else:
+            print("  Momentum scoring disabled — using full symbol universe.")
+            top_stocks = [(*parse_symbol(s), None) for s in unique_symbols]
 
         if not top_stocks:
             print(f"  {trade_day.date()}: no stocks passed the momentum filter — skipping day.")
@@ -924,7 +933,11 @@ if __name__ == "__main__" or True:
 
         # Phase 1b: Pre-market trend direction analysis (mirrors FyersORB)
         hist_trends: Optional[dict] = None
-        if trend_svc and ENABLE_TREND_FILTER:
+        if not ENABLE_PREMARKET_TREND_ANALYSIS:
+            # Empty dict (not None) so the backtest neither uses pre-market
+            # trends nor falls back to computing them inline.
+            hist_trends = {}
+        elif trend_svc and ENABLE_TREND_FILTER:
             hist_trends = run_premarket_trend_analysis(
                 trend_svc         = trend_svc,
                 top_stocks        = top_stocks,
