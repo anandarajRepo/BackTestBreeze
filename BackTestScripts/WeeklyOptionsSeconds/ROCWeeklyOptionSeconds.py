@@ -65,6 +65,12 @@ END_DATE          = "20-Jul-2026"   # format: DD-Mon-YYYY
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
 ROC_PERIOD        = 12              # lookback period (in bars) for ROC calculation
 
+# Option leg toggle. Restrict the backtest to a single option side:
+#   "CE"   → test only CALL options
+#   "PE"   → test only PUT options
+#   "BOTH" → test both legs (default)
+OPTION_SIDE       = "BOTH"
+
 # Entry trigger. A momentum entry fires when ROC crosses ABOVE
 # ROC_BUY_THRESHOLD (the option's price is that many percent above where it was
 # ROC_PERIOD bars ago). Raise it to demand stronger momentum before entering.
@@ -168,6 +174,7 @@ if __name__ == "__main__":
         trailing_stop_pct=TRAILING_STOP_PCT,
         breakeven_enabled=BREAKEVEN_ENABLED,
         breakeven_trigger_pct=BREAKEVEN_TRIGGER_PCT,
+        option_side=OPTION_SIDE,
     )
 
     expiry_results = strategy.run_weekly_backtest()

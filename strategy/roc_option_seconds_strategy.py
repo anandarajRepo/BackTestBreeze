@@ -204,6 +204,7 @@ class ROCOptionStrategy:
         trailing_stop_pct: float = 0.0,
         breakeven_enabled: bool = False,
         breakeven_trigger_pct: float = 5.0,
+        option_side: str = "BOTH",
     ):
         self.nifty_service    = nifty_service
         self.capital          = capital
@@ -248,6 +249,16 @@ class ROCOptionStrategy:
         # the trade can no longer turn into a loss (locks in break-even).
         self.breakeven_enabled      = breakeven_enabled
         self.breakeven_trigger_pct  = breakeven_trigger_pct
+        # Which option leg(s) to trade: "CE" tests only calls, "PE" only puts,
+        # and "BOTH" (default) trades both legs. Used to restrict the backtest
+        # to a single side.
+        side = (option_side or "BOTH").upper()
+        if side not in ("BOTH", "CE", "PE"):
+            raise ValueError(
+                f"option_side must be one of 'BOTH', 'CE', 'PE' (got {option_side!r})"
+            )
+        self.option_side  = side
+        self.option_types = ("CE", "PE") if side == "BOTH" else (side,)
 
     # ── Core per-symbol backtest ──────────────────────────────────────────────
 
@@ -497,6 +508,8 @@ class ROCOptionStrategy:
         print(f"  Fetch TF  : {self.interval}  |  Effective TF: {effective_tf}")
         print(f"  Capital   : ₹{self.capital:,.0f}  |  ROC period: {self.roc_period}"
               f"  |  Buy thr: {self.roc_buy_threshold}  |  Exit thr: {self.roc_exit_threshold}")
+        side_label = "BOTH (CE + PE)" if self.option_side == "BOTH" else self.option_side
+        print(f"  Option leg: {side_label}")
         print(f"  Expiries found: {len(wednesdays)}")
         print(f"{'='*70}\n")
 
@@ -554,7 +567,7 @@ class ROCOptionStrategy:
         # cache; if any is missing, skip this expiry entirely.
         if self.cache_only:
             missing = False
-            for opt_type in ("CE", "PE"):
+            for opt_type in self.option_types:
                 cached = self.nifty_service.get_option_candles(
                     strike=strike,
                     expiry_date=expiry,
@@ -571,7 +584,7 @@ class ROCOptionStrategy:
                 print(f"    [cache-only] No cached data — skipping expiry {expiry}")
                 return None
 
-        for opt_type in ("CE", "PE"):
+        for opt_type in self.option_types:
             try:
                 candles = self.nifty_service.get_option_candles(
                     strike=strike,
@@ -646,7 +659,7 @@ class ROCOptionStrategy:
             # if any is missing, skip just this day.
             if self.cache_only:
                 missing = False
-                for opt_type in ("CE", "PE"):
+                for opt_type in self.option_types:
                     cached = self.nifty_service.get_option_candles(
                         strike=strike,
                         expiry_date=expiry,
@@ -663,7 +676,7 @@ class ROCOptionStrategy:
                     print(f"      [cache-only] No cached data — skipping {day}")
                     continue
 
-            for opt_type in ("CE", "PE"):
+            for opt_type in self.option_types:
                 try:
                     candles = self.nifty_service.get_option_candles(
                         strike=strike,
