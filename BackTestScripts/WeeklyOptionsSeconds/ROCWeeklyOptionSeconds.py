@@ -59,7 +59,7 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
+START_DATE        = "01-Jul-2026"   # format: DD-Mon-YYYY
 END_DATE          = "20-Jul-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
@@ -69,7 +69,7 @@ ROC_PERIOD        = 12              # lookback period (in bars) for ROC calculat
 #   "CE"   → test only CALL options
 #   "PE"   → test only PUT options
 #   "BOTH" → test both legs (default)
-OPTION_SIDE       = "BOTH"
+OPTION_SIDE       = "PE"
 
 # Entry trigger. A momentum entry fires when ROC crosses ABOVE
 # ROC_BUY_THRESHOLD (the option's price is that many percent above where it was
@@ -80,7 +80,7 @@ ROC_BUY_THRESHOLD = 3.0
 # BELOW ROC_EXIT_THRESHOLD (momentum has faded). 0.0 exits when ROC turns flat/
 # negative; set it above 0 to exit earlier while momentum is still mildly
 # positive, or below 0 to give the trade more room.
-ROC_EXIT_THRESHOLD = 0.0
+ROC_EXIT_THRESHOLD = 1.0
 
 # Volume confirmation for entries. The entry bar's volume must be at least
 # VOLUME_FACTOR times the rolling-average volume (over ROC_PERIOD bars) for the
@@ -94,13 +94,13 @@ VOLUME_FACTOR     = 3.0
 # TRAILING_STOP_PCT is expressed as a percentage, e.g. 20.0 = 20%.
 # Set TRAILING_STOP_ENABLED to False to disable the trailing stop entirely.
 TRAILING_STOP_ENABLED = True
-TRAILING_STOP_PCT     = 6.0
+TRAILING_STOP_PCT     = 5.0
 
 # Break-even stop. When enabled, once the option price moves
 # BREAKEVEN_TRIGGER_PCT percent above entry, the stop-loss is moved up to the
 # entry price so the remaining position can no longer turn into a loss.
 BREAKEVEN_ENABLED     = True
-BREAKEVEN_TRIGGER_PCT = 3.0
+BREAKEVEN_TRIGGER_PCT = 5.0
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
@@ -108,7 +108,7 @@ INTERVAL          = "1second"
 # Candle size (in seconds) used for the strategy.
 # Supported examples: 1, 5, 10, 15, 30, 45, 60, 120, 300, …
 # Set to 1 to use raw 1-second bars without any resampling.
-RESAMPLE_SECONDS  = 5
+RESAMPLE_SECONDS  = 60
 
 # Print the final resampled DataFrame (with the ROC indicator) alongside the
 # trades for each option contract before the summary report.
