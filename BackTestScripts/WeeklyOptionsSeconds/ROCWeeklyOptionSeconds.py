@@ -59,16 +59,16 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
-END_DATE          = "30-Jun-2026"   # format: DD-Mon-YYYY
+START_DATE        = "01-Jun-2026"   # format: DD-Mon-YYYY
+END_DATE          = "20-Jul-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
-ROC_PERIOD        = 60              # lookback period (in bars) for ROC calculation
+ROC_PERIOD        = 12              # lookback period (in bars) for ROC calculation
 
 # Entry trigger. A momentum entry fires when ROC crosses ABOVE
 # ROC_BUY_THRESHOLD (the option's price is that many percent above where it was
 # ROC_PERIOD bars ago). Raise it to demand stronger momentum before entering.
-ROC_BUY_THRESHOLD = 1.0
+ROC_BUY_THRESHOLD = 3.0
 
 # Exit trigger. While in position, the trade is closed when ROC crosses back
 # BELOW ROC_EXIT_THRESHOLD (momentum has faded). 0.0 exits when ROC turns flat/
@@ -80,7 +80,7 @@ ROC_EXIT_THRESHOLD = 0.0
 # VOLUME_FACTOR times the rolling-average volume (over ROC_PERIOD bars) for the
 # ROC crossover signal to be taken. 1.0 = at least average volume; >1.0 demands
 # an above-average ("good") volume surge. Set to 0 to disable the volume filter.
-VOLUME_FACTOR     = 1.0
+VOLUME_FACTOR     = 3.0
 
 # Trailing stop-loss. When TRAILING_STOP_ENABLED is True, the position is
 # closed if the option price falls TRAILING_STOP_PCT percent below the highest
@@ -88,13 +88,13 @@ VOLUME_FACTOR     = 1.0
 # TRAILING_STOP_PCT is expressed as a percentage, e.g. 20.0 = 20%.
 # Set TRAILING_STOP_ENABLED to False to disable the trailing stop entirely.
 TRAILING_STOP_ENABLED = True
-TRAILING_STOP_PCT     = 10.0
+TRAILING_STOP_PCT     = 6.0
 
 # Break-even stop. When enabled, once the option price moves
 # BREAKEVEN_TRIGGER_PCT percent above entry, the stop-loss is moved up to the
 # entry price so the remaining position can no longer turn into a loss.
 BREAKEVEN_ENABLED     = True
-BREAKEVEN_TRIGGER_PCT = 5.0
+BREAKEVEN_TRIGGER_PCT = 3.0
 
 # Always fetch raw 1-second bars from Breeze; resampling is done locally.
 INTERVAL          = "1second"
@@ -113,7 +113,7 @@ PRINT_RESAMPLED   = False
 # backtest moves on to the next expiry.
 # When False, data is read from cache as usual, and any data not present in the
 # cache is fetched from the Breeze API via a historical-data request.
-CACHE_ONLY        = True
+CACHE_ONLY        = False
 
 # When True, a fresh ATM strike is chosen for EACH trading day from that day's
 # Nifty 9:15 open (weekends and market holidays are skipped automatically), and
