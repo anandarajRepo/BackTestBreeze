@@ -59,7 +59,7 @@ print("Session Generated Successfully\n")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-START_DATE        = "01-Jun-2026"   # format: DD-Mon-YYYY
+START_DATE        = "01-Jan-2026"   # format: DD-Mon-YYYY
 END_DATE          = "20-Jul-2026"   # format: DD-Mon-YYYY
 
 CAPITAL           = 100_000.0       # capital per contract (used for position sizing)
@@ -102,7 +102,7 @@ INTERVAL          = "1second"
 # Candle size (in seconds) used for the strategy.
 # Supported examples: 1, 5, 10, 15, 30, 45, 60, 120, 300, …
 # Set to 1 to use raw 1-second bars without any resampling.
-RESAMPLE_SECONDS  = 60
+RESAMPLE_SECONDS  = 5
 
 # Print the final resampled DataFrame (with the ROC indicator) alongside the
 # trades for each option contract before the summary report.
