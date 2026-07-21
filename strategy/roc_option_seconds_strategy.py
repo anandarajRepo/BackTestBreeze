@@ -799,3 +799,45 @@ class ROCOptionStrategy:
             f" {wr_overall:>{col_w['wr']}.1f} {pnl_s:>{col_w['pnl']}}"
         )
         print(f"{'='*90}\n")
+
+        # Separate consolidated trade summaries for CE and PE legs.
+        ce_trades = [t for t in all_trades if t.option_type == "CE"]
+        pe_trades = [t for t in all_trades if t.option_type == "PE"]
+        ROCOptionStrategy._print_option_summary("CE (CALL) TRADE SUMMARY", ce_trades)
+        ROCOptionStrategy._print_option_summary("PE (PUT) TRADE SUMMARY", pe_trades)
+
+    @staticmethod
+    def _print_option_summary(title: str, trades: list[ROCTradeResult]) -> None:
+        """
+        Print a consolidated metrics summary for a single option leg (all CE
+        trades or all PE trades aggregated together).
+        """
+        print(f"{'='*90}")
+        print(f"  {title}")
+        print(f"{'='*90}")
+
+        if not trades:
+            print("  (no trades)\n")
+            return
+
+        m = _compute_metrics(title, trades)
+
+        pnl_s = f"{'+' if m.total_pnl >= 0 else ''}{m.total_pnl:.2f}"
+        avg_s = f"{'+' if m.avg_pnl >= 0 else ''}{m.avg_pnl:.2f}"
+        pf_s  = f"{m.profit_factor:.2f}" if m.profit_factor != float("inf") else "∞"
+        best_s  = f"{'+' if m.best_trade >= 0 else ''}{m.best_trade:.2f}"
+        worst_s = f"{'+' if m.worst_trade >= 0 else ''}{m.worst_trade:.2f}"
+
+        label_w = 22
+        print(f"  {'Total trades':<{label_w}} {m.total_trades}")
+        print(f"  {'Wins':<{label_w}} {m.wins}")
+        print(f"  {'Losses':<{label_w}} {m.losses}")
+        print(f"  {'Win rate':<{label_w}} {m.win_rate:.1f}%")
+        print(f"  {'Total PnL':<{label_w}} {pnl_s}")
+        print(f"  {'Avg PnL / trade':<{label_w}} {avg_s}")
+        print(f"  {'Profit factor':<{label_w}} {pf_s}")
+        print(f"  {'Best trade':<{label_w}} {best_s}")
+        print(f"  {'Worst trade':<{label_w}} {worst_s}")
+        print(f"  {'Avg duration (min)':<{label_w}} {m.avg_duration_minutes:.1f}")
+        print(f"  {'Max consec. losses':<{label_w}} {m.max_consecutive_losses}")
+        print(f"{'='*90}\n")
