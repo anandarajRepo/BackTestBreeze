@@ -149,16 +149,16 @@ SYMBOLS = [
 CAPITAL_PER_STOCK = 100_000  # Rs. allocated per trade; qty = floor(capital / entry)
 STOP_LOSS_PCT     = 1.5
 RISK_REWARD_RATIO = 2.0
-START_DATE        = "01-Jul-2026 9:15:00"
-END_DATE          = "17-Jul-2026 15:29:59"
+START_DATE        = "01-Jun-2026 9:15:00"
+END_DATE          = "30-Jun-2026 15:29:59"
 INTERVAL          = "1minute"  # 1minute, 1second
 
 # ── ROC Signal Configuration ──────────────────────────────────────────────────
 
-ROC_PERIOD         = 14    # lookback candles for ROC: (close[i] - close[i-N]) / close[i-N] * 100
+ROC_PERIOD         = 3    # lookback candles for ROC: (close[i] - close[i-N]) / close[i-N] * 100
 ROC_BUY_THRESHOLD  = 0.5   # BUY when ROC crosses above +this %
 ROC_SELL_THRESHOLD = 0.5   # SELL when ROC crosses below -this %
-ENTRY_CUTOFF_TIME  = "14:30"  # no fresh entries after this time (still exit by close)
+ENTRY_CUTOFF_TIME  = "15:00"  # no fresh entries after this time (still exit by close)
 # A crossover requires the PREVIOUS candle's ROC to be inside the threshold band
 # and the current candle's ROC to be beyond it — merely being above/below the
 # threshold at the first computable candle is not a signal.
@@ -175,7 +175,7 @@ TRAILING_STOP_PCT        = 1.0   # trail the remaining 50% by this % off the pea
 # ── Portfolio Selection ───────────────────────────────────────────────────────
 
 TOP_N_STOCKS     = len(SYMBOLS)   # Backtest ALL symbols in the universe
-MAX_DAILY_TRADES = 3    # Maximum trades to take per calendar day
+MAX_DAILY_TRADES = 10    # Maximum trades to take per calendar day
 
 # ── Momentum Scoring ──────────────────────────────────────────────────────────
 
