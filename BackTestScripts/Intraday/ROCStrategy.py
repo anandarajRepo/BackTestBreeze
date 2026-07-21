@@ -174,7 +174,7 @@ TRAILING_STOP_PCT        = 1.0   # trail the remaining 50% by this % off the pea
 
 # ── Portfolio Selection ───────────────────────────────────────────────────────
 
-TOP_N_STOCKS     = 15   # Keep top N stocks by momentum score
+TOP_N_STOCKS     = len(SYMBOLS)   # Backtest ALL symbols in the universe
 MAX_DAILY_TRADES = 3    # Maximum trades to take per calendar day
 
 # ── Momentum Scoring ──────────────────────────────────────────────────────────
@@ -458,10 +458,6 @@ def score_all_and_select_top(
     """
     parsed = [parse_symbol(s) for s in symbols]
 
-    print(f"\n{'='*70}")
-    print(f"  PHASE 1 — Momentum scoring {len(parsed)} symbols (as of {as_of_date.date()})")
-    print(f"{'='*70}")
-
     scores = momentum_svc.score_all_symbols(
         symbols=parsed,
         as_of_date=as_of_date,
@@ -469,19 +465,6 @@ def score_all_and_select_top(
         min_score=MIN_MOMENTUM_SCORE,
         top_n=top_n,
     )
-
-    # Print ranked table
-    print(f"\n  {'Rank':<5} {'Symbol':<12} {'Score':>6}  {'Quality':<12}  "
-          f"{'ROC5d':>7}  {'RSI':>5}  {'VolRatio':>8}")
-    print(f"  {'-'*65}")
-    for rank, ms in enumerate(scores, 1):
-        marker = " ◀ TOP" if rank <= top_n else ""
-        print(
-            f"  {rank:<5} {ms.symbol:<12} {ms.composite_score:>6.1f}  "
-            f"{ms.data_quality:<12}  {ms.roc_5d:>+7.1f}%  "
-            f"{ms.rsi_14:>5.0f}  {ms.volume_ratio_5d:>8.2f}{marker}"
-        )
-    print()
 
     # score_all_symbols already filtered by min_score and sliced to top_n
     top_structured: list[tuple[str, str, MomentumScore]] = []
@@ -497,10 +480,6 @@ def score_all_and_select_top(
             f"Close=Rs.{ms.last_close:.2f}"
         )
 
-    print(f"  Selected {len(top_structured)} stocks for ROC scanning "
-          f"(min score >= {MIN_MOMENTUM_SCORE}, top {top_n})")
-    print(f"{'='*70}\n")
-
     return top_structured
 
 
@@ -513,11 +492,6 @@ def select_top_unscored(
     order, pairing each with a neutral placeholder MomentumScore so the rest of
     the pipeline (rank maps, reporting) works unchanged.
     """
-    print(f"\n{'='*70}")
-    print(f"  PHASE 1 — Momentum scoring DISABLED; taking first {top_n} of "
-          f"{len(symbols)} symbols in universe order")
-    print(f"{'='*70}\n")
-
     top_structured: list[tuple[str, str, MomentumScore]] = []
     for symbol in symbols[:top_n]:
         sc, exc = parse_symbol(symbol)
@@ -542,10 +516,6 @@ def run_portfolio_roc_backtest(
       2. Detect the first ROC threshold crossover per stock.
       3. Accept at most MAX_DAILY_TRADES per day (momentum rank priority).
     """
-    print(f"\n{'='*70}")
-    print(f"  PHASE 2 — Fetching intraday data for {len(top_stocks)} stocks")
-    print(f"{'='*70}")
-
     # Fetch intraday candles for all top stocks
     stock_candles: dict[str, dict] = {}  # stock_code → {date: [candles]}
     for stock_code, exchange_code, ms in top_stocks:
@@ -554,8 +524,6 @@ def run_portfolio_roc_backtest(
                 stock_code, exchange_code, start_date, end_date, INTERVAL
             )
             stock_candles[stock_code] = ORBDataService.group_by_date(candles)
-            print(f"  {stock_code:<12} — {sum(len(v) for v in stock_candles[stock_code].values())} candles "
-                  f"across {len(stock_candles[stock_code])} days")
         except Exception as exc:
             print(f"  {stock_code:<12} — ERROR: {exc}")
 
