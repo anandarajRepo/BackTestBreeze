@@ -179,8 +179,18 @@ MAX_DAILY_TRADES = 3    # Maximum trades to take per calendar day
 
 # ── Momentum Scoring ──────────────────────────────────────────────────────────
 
+# Master toggle for momentum scoring. When False, symbols are NOT scored or
+# ranked — the whole universe (capped at TOP_N_STOCKS) is passed straight to the
+# ROC scan and momentum-rank priority collapses to the SYMBOLS list order.
+ENABLE_MOMENTUM_SCORING = False
+
 MIN_MOMENTUM_SCORE     = 50.0
 MOMENTUM_LOOKBACK_DAYS = 200  # needs ~157 trading days for Wilder RSI warmup to converge
+
+# Master toggle for the pre-market trend direction analysis (Phase 1b). When
+# False, no pre-market trend is computed and the ROC scan runs without the
+# trend-alignment filter.
+ENABLE_PREMARKET_TREND_ANALYSIS = False
 
 # ── Trend Filter ──────────────────────────────────────────────────────────────
 
@@ -494,6 +504,27 @@ def score_all_and_select_top(
     return top_structured
 
 
+def select_top_unscored(
+    symbols: list[str],
+    top_n: int,
+) -> list[tuple[str, str, MomentumScore]]:
+    """
+    Momentum-scoring-disabled path: keep the first *top_n* symbols in universe
+    order, pairing each with a neutral placeholder MomentumScore so the rest of
+    the pipeline (rank maps, reporting) works unchanged.
+    """
+    print(f"\n{'='*70}")
+    print(f"  PHASE 1 — Momentum scoring DISABLED; taking first {top_n} of "
+          f"{len(symbols)} symbols in universe order")
+    print(f"{'='*70}\n")
+
+    top_structured: list[tuple[str, str, MomentumScore]] = []
+    for symbol in symbols[:top_n]:
+        sc, exc = parse_symbol(symbol)
+        top_structured.append((sc, exc, MomentumScore(symbol=symbol)))
+    return top_structured
+
+
 # ── Phase 2 & 3: Per-day ROC scan across top stocks ──────────────────────────
 
 
@@ -548,7 +579,7 @@ def run_portfolio_roc_backtest(
     as_of_date = datetime(first_date.year, first_date.month, first_date.day)
     if hist_trends is None:
         hist_trends = {}
-        if trend_svc and ENABLE_TREND_FILTER:
+        if ENABLE_PREMARKET_TREND_ANALYSIS and trend_svc and ENABLE_TREND_FILTER:
             print("  Computing historical trend for each stock…")
             for stock_code, exchange_code, _ in top_stocks:
                 try:
@@ -854,12 +885,15 @@ if __name__ == "__main__" or True:
         print(f"{'#'*70}")
 
         # Phase 1: Score all, select top N (as of the previous day's close)
-        top_stocks = score_all_and_select_top(
-            momentum_svc=momentum_svc,
-            symbols=unique_symbols,
-            as_of_date=as_of_date,
-            top_n=TOP_N_STOCKS,
-        )
+        if ENABLE_MOMENTUM_SCORING:
+            top_stocks = score_all_and_select_top(
+                momentum_svc=momentum_svc,
+                symbols=unique_symbols,
+                as_of_date=as_of_date,
+                top_n=TOP_N_STOCKS,
+            )
+        else:
+            top_stocks = select_top_unscored(unique_symbols, TOP_N_STOCKS)
 
         if not top_stocks:
             print(f"  {trade_day.date()}: no stocks passed the momentum filter — skipping day.")
@@ -867,7 +901,7 @@ if __name__ == "__main__" or True:
 
         # Phase 1b: Pre-market trend direction analysis
         hist_trends: Optional[dict] = None
-        if trend_svc and ENABLE_TREND_FILTER:
+        if ENABLE_PREMARKET_TREND_ANALYSIS and trend_svc and ENABLE_TREND_FILTER:
             hist_trends = run_premarket_trend_analysis(
                 trend_svc         = trend_svc,
                 top_stocks        = top_stocks,
